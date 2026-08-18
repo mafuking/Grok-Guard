@@ -6,7 +6,7 @@
   "engines": {
     "node": ">=22.5.0"
   },
-  "description": "Detect model degradation and check IP quality for official-login Cursor, Grok Build, and Grok CLI",
+  "description": "Detect model degradation and check IP quality for official-login Cursor, Grok Build, and Grok CLI. 给官方登录的 Cursor / Grok Build / Grok CLI 检测模型是否降智，并做 IP 质量检测。",
   "type": "module",
   "scripts": {
     "start": "node scripts/boot.mjs",
