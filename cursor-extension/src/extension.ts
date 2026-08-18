@@ -109,6 +109,7 @@ function panelHtml() {
   <p class="muted" id="geo"></p>
   <p id="tags"></p>
   <p class="muted" id="summary">正在读取本机出口…</p>
+  <p class="muted">Grok 看思考和探针；出口 IP 单独看。令牌/秒只记录。</p>
   <p class="muted">只在发送对话或手点时检测，不轮询。</p>
   <p class="muted" id="checked"></p>
   <button id="refresh">重新检测出口</button>

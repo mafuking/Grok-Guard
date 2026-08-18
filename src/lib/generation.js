@@ -45,6 +45,8 @@ export function createGeneration(dataDir) {
         startedAt: Date.now(),
         firstTokenAt: null,
         thoughtTokens: 0,
+        thoughtSeen: false,
+        probe: Boolean(partial.probe),
         ip: partial.ip || null,
         title: partial.title || "",
         titleFull: partial.titleFull || partial.title || "",
@@ -59,6 +61,7 @@ export function createGeneration(dataDir) {
       const session = pickSession(sessions, conversationId);
       if (!session) return null;
       if (!session.firstTokenAt) session.firstTokenAt = Date.now();
+      session.thoughtSeen = true;
       session.thoughtTokens += estimateTokens(text);
       await persist();
       return session;

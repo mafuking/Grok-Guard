@@ -4,7 +4,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { lookupEgress } from "./lib/ip.js";
 import { randomUUID } from "node:crypto";
-import { classifyTps, combineVerdict, computeTps, LABELS, scoreIp } from "./lib/score.js";
+import {
+  QUALITY_PROBE,
+  classifyTps,
+  combineVerdict,
+  computeTps,
+  expectsThinking,
+  isProbeText,
+  LABELS,
+  logicVersion,
+  scoreIp,
+} from "./lib/score.js";
 import { createStore } from "./lib/store.js";
 import { createGeneration } from "./lib/generation.js";
 import { estimateTokens } from "./lib/tokens.js";
@@ -47,7 +57,16 @@ async function lookupStatus() {
   const egress = await lookupEgress();
   const ipScore = scoreIp(egress.geo);
   const latestTps = latestOf("tps");
-  const tpsClass = latestTps ? { ...latestTps, ...classifyTps(latestTps) } : null;
+  const tpsClass = latestTps
+    ? {
+        ...latestTps,
+        ...classifyTps({
+          ...latestTps,
+          requireThinking:
+            latestTps.requireThinking ?? expectsThinking(latestTps.model, latestTps.source),
+        }),
+      }
+    : null;
   const combined = combineVerdict({
     ipScore,
     tpsClass,
@@ -55,7 +74,14 @@ async function lookupStatus() {
     ipv6: egress.ipv6,
     ipv6Leak: egress.ipv6Leak,
   });
-  cache = { ...egress, ipScore, latestSample: latestTps, ...combined };
+  cache = {
+    ...egress,
+    ipScore,
+    latestSample: latestTps,
+    logicVersion: logicVersion(),
+    probePrompt: QUALITY_PROBE,
+    ...combined,
+  };
   return cache;
 }
 
@@ -94,6 +120,8 @@ function emptyStatus() {
     };
   }
   base.pending = Boolean(pending) || store.list().some((s) => s.pending);
+  base.logicVersion = logicVersion();
+  base.probePrompt = QUALITY_PROBE;
   return base;
 }
 
@@ -109,6 +137,10 @@ function buildSample({
   ipv6 = null,
   geo = {},
   reasoningTokens = null,
+  reasoningKnown = null,
+  requireThinking = false,
+  probe = false,
+  marker = null,
   replyTokens = null,
   measured = {},
   classified = { level: "", reasons: [] },
@@ -132,6 +164,10 @@ function buildSample({
     geo,
     ipLabel: formatIpCell(ipv4, geo),
     reasoningTokens,
+    reasoningKnown,
+    requireThinking,
+    probe,
+    marker,
     replyTokens,
     ...measured,
     ...classified,
@@ -180,6 +216,7 @@ async function startGeneration(body = {}) {
     titleFull,
     model,
     conversationId,
+    probe: isProbeText(body.prompt || titleFull),
     ip: {
       ipv4: status.ipv4,
       ipv6: status.ipv6,
@@ -202,11 +239,6 @@ async function finishGeneration(text, conversationId) {
   const durationMs = Math.max(1, Date.now() - session.startedAt);
   const firstTokenMs = session.firstTokenAt ? Math.max(0, session.firstTokenAt - session.startedAt) : 0;
   const measured = computeTps(outputTokens, durationMs, firstTokenMs);
-  const classified = classifyTps({
-    ...measured,
-    reasoningTokens,
-    requireThinking: session.source === "grok-build",
-  });
   const ip = session.ip || {};
   let titleFull = session.titleFull || session.title || "";
   let model = session.model || "";
@@ -215,6 +247,18 @@ async function finishGeneration(text, conversationId) {
     titleFull = meta.title || titleFull;
     model = model || meta.model || "";
   }
+  const reasoningKnown = Boolean(session.thoughtSeen);
+  const requireThinking = expectsThinking(model, session.source);
+  const probe = Boolean(session.probe);
+  const marker = /QUALITY_OK/.test(text) ? "QUALITY_OK" : null;
+  const classified = classifyTps({
+    ...measured,
+    reasoningTokens,
+    reasoningKnown,
+    requireThinking,
+    probe,
+    marker,
+  });
   const sample = buildSample({
     id: session.sampleId || session.id,
     source: session.source,
@@ -224,6 +268,10 @@ async function finishGeneration(text, conversationId) {
     ipv6: ip.ipv6,
     geo: ip.geo,
     reasoningTokens,
+    reasoningKnown,
+    requireThinking,
+    probe,
+    marker,
     replyTokens,
     measured,
     classified,
@@ -340,10 +388,15 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/sample") {
       const body = await readBody(req);
       const measured = computeTps(body.outputTokens, body.durationMs, body.firstTokenMs);
+      const reasoningKnown = body.reasoningKnown === true || body.reasoningTokens != null;
+      const requireThinking = expectsThinking(body.model, body.source);
       const classified = classifyTps({
         ...measured,
         reasoningTokens: body.reasoningTokens,
-        requireThinking: body.source === "grok-build",
+        reasoningKnown,
+        requireThinking,
+        probe: Boolean(body.probe),
+        marker: body.marker || null,
       });
       const sample = buildSample({
         source: body.source || "unknown",
@@ -352,6 +405,10 @@ const server = http.createServer(async (req, res) => {
         ipv4: body.ipv4 || null,
         geo: body.geo || {},
         reasoningTokens: body.reasoningTokens ?? null,
+        reasoningKnown,
+        requireThinking,
+        probe: Boolean(body.probe),
+        marker: body.marker || null,
         measured,
         classified,
       });
@@ -409,6 +466,7 @@ startGrokWatch({
     const classified = classifyTps({
       ...measured,
       reasoningTokens: turn.reasoningTokens,
+      reasoningKnown: true,
       requireThinking: true,
     });
     await store.add(
@@ -419,6 +477,8 @@ startGrokWatch({
         ipv4: status.ipv4,
         geo: status.geo,
         reasoningTokens: turn.reasoningTokens,
+        reasoningKnown: true,
+        requireThinking: true,
         measured,
         classified,
       }),

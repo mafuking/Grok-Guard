@@ -52,7 +52,7 @@ function parseTurn(line) {
     outputTokens: usage.outputTokens,
     reasoningTokens: usage.reasoningTokens || 0,
     durationMs: usage.apiDurationMs,
-    firstTokenMs: 0,
+    firstTokenMs: usage.timeToFirstTokenMs || usage.firstTokenMs || 0,
     model: Object.keys(usage.modelUsage || {})[0] || "grok-build",
   };
 }

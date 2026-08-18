@@ -101,9 +101,11 @@
 <body>
   <main>
     <h1>Grok 出口检测</h1>
-    <p class="lead">使用本机当前出口IP：通过计算令牌/秒来判断是否降智，仅官方登录的 Cursor Agents / Grok Build 使用。</p>
+    <p class="lead">官方订阅检测：Grok 看有没有思考 / 探针是否通过；出口 IP 只判断机房和地区，令牌/秒只作记录。</p>
     <div class="actions">
       <button id="refresh">重新检测出口</button>
+      <button class="ghost" id="copy-probe" type="button">复制质量探针</button>
+      <span class="muted" id="logic-ver"></span>
     </div>
     <div class="row">
       <section class="card">
@@ -118,8 +120,8 @@
       </section>
       <section class="card scope">
         <h2>适用边界</h2>
-        <p><b>Grok Build / Grok CLI</b>：读本机 <code>~/.grok/sessions</code> 里官方回合数据（outputTokens、耗时）。</p>
-        <p><b>Cursor Agents</b>：发送时先记一行样本并开始计时，回复结束后估算令牌/秒；没有思考过程的模型不会因此判成降智。</p>
+        <p><b>模型质量</b>：Grok 确认没有思考，或探针缺 <code>QUALITY_OK</code>，才标疑似降智。SOL 等无思考模型只备注。</p>
+        <p><b>出口</b>：机房 / 代理 / 国家单独看，不和降智合成。Cursor 官方流量先到 Cursor，本机 IP 管地区和风控。</p>
       </section>
     </div>
     <section class="card" style="margin-top:12px">
@@ -232,7 +234,13 @@
       if (g.proxy) badges.push('<span class="badge high">代理标记</span>');
       if (!g.hosting && !g.proxy) badges.push('<span class="badge low">更像宽带</span>');
       if (status.ipv6Leak) badges.push('<span class="badge high">IPv4/IPv6 出口不一致</span>');
+      if (status.verdictLabel) {
+        badges.unshift(`<span class="badge ${status.verdict || ""}">${esc(status.verdictLabel)}</span>`);
+      }
       document.getElementById("ip-badges").innerHTML = badges.join("");
+      document.getElementById("logic-ver").textContent = status.logicVersion
+        ? "判定 " + status.logicVersion
+        : "";
       const pendingN = samples.filter((s) => s.pending).length;
       document.getElementById("checked").textContent = pendingN
         ? pendingN > 1
@@ -264,6 +272,18 @@
         refreshBtn.disabled = false;
       }
     }
+    const copyProbe = document.getElementById("copy-probe");
+    copyProbe.onclick = async () => {
+      const prompt = (await fetch(API + "/api/status").then((r) => r.json()).catch(() => ({}))).probePrompt
+        || "用大约 80 到 120 个英文词解释 TCP 和 UDP 的区别，不要列清单。最后单独一行只写：QUALITY_OK";
+      try {
+        await navigator.clipboard.writeText(prompt);
+        copyProbe.textContent = "已复制";
+        setTimeout(() => (copyProbe.textContent = "复制质量探针"), 800);
+      } catch {
+        copyProbe.textContent = "复制失败";
+      }
+    };
     refreshBtn.onclick = () => refresh(true);
     document.getElementById("prev-page").onclick = () => {
       page -= 1;

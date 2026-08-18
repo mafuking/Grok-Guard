@@ -1,11 +1,12 @@
 {
   "name": "grok-egress-guard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Official-login egress IP and Grok quality heuristic for Cursor and Grok Build",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
+    "test": "node --test src/lib/score.test.js",
     "ext:compile": "npm --prefix cursor-extension run compile"
   }
 }
