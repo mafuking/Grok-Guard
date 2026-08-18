@@ -40,13 +40,14 @@ Grok CLI      ── 监视 ~/.grok/sessions
 
 ```bash
 git clone https://github.com/mafuking/grok-egress-guard.git
+# Windows: 双击 start.bat
+# 其它系统: npm start  或  ./start.sh
+# 先写 hooks 再开面板；写失败也会继续开。窗口不要关。
 ```
-
-Windows 双击 `start.bat`。其它系统：`npm start` 或 `./start.sh`。都会先写 hooks 再开面板；hooks 写失败也会继续开服务。窗口不要关。
 
 然后在 Cursor 按 `Ctrl+Shift+P`（macOS 用 `Cmd+Shift+P`），运行 **Developer: Reload Window**。打开 [本机面板](http://127.0.0.1:3780/)，正常对话即可。工作区需先设为信任。
 
-`npm run install:hooks` 只用来「只写 hooks、不启动」。油猴只给 grok.com，见下。
+`npm run install:hooks`：只写 hooks、不启动。油猴：grok.com。
 
 ### Grok Build（可选）
 

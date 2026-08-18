@@ -40,13 +40,14 @@ You need **Node.js 22.5+**. No `npm install`, and no extension.
 
 ```bash
 git clone https://github.com/mafuking/grok-egress-guard.git
+# Windows: double-click start.bat
+# elsewhere: npm start  or  ./start.sh
+# writes hooks, then starts; hooks failure still starts. leave the window open.
 ```
-
-On Windows, double-click `start.bat`. Elsewhere: `npm start` or `./start.sh`. All of them write hooks first, then start the dashboard; a hooks failure still starts the server. Leave the window open.
 
 Then press `Ctrl+Shift+P` (`Cmd+Shift+P` on macOS) and run **Developer: Reload Window**. Open the [local dashboard](http://127.0.0.1:3780/) and chat as usual. The workspace must be trusted.
 
-`npm run install:hooks` is only for writing hooks without starting the server. The userscript is only for grok.com, below.
+`npm run install:hooks`: write hooks only. Userscript: grok.com.
 
 ### Grok Build (optional)
 
