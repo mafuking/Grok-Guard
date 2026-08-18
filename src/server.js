@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import { lookupEgress } from "./lib/ip.js";
 import { randomUUID } from "node:crypto";
 import {
-  QUALITY_PROBE,
   classifyTps,
   combineVerdict,
   computeTps,
@@ -15,6 +14,7 @@ import {
   logicVersion,
   scoreIp,
 } from "./lib/score.js";
+import { labelsFor, probeFor, resolveLang } from "./lib/i18n.js";
 import { createStore } from "./lib/store.js";
 import { createGeneration } from "./lib/generation.js";
 import { estimateTokens } from "./lib/tokens.js";
@@ -67,62 +67,73 @@ async function lookupStatus() {
         }),
       }
     : null;
-  const combined = combineVerdict({
-    ipScore,
-    tpsClass,
-    ipv4: egress.ipv4,
-    ipv6: egress.ipv6,
-    ipv6Leak: egress.ipv6Leak,
-  });
   cache = {
     ...egress,
     ipScore,
     latestSample: latestTps,
-    logicVersion: logicVersion(),
-    probePrompt: QUALITY_PROBE,
-    ...combined,
+    tpsClass,
+    checkedAt: egress.checkedAt,
   };
   return cache;
 }
 
-function emptyStatus() {
-  const pending = generation.get();
+function requestLang(req, url) {
+  return resolveLang(url.searchParams.get("lang") || req.headers["accept-language"] || "zh");
+}
+
+function statusFor(lang) {
+  const pending = Boolean(generation.get()) || store.list().some((s) => s.pending);
   const last = latestOf("tps") || latestOf("ip");
-  let base;
-  if (cache) base = { ...cache };
-  else if (last) {
-    base = {
+  const labels = labelsFor(lang);
+  let raw = cache;
+  if (!raw && last) {
+    raw = {
       ipv4: last.ipv4 || null,
       ipv6: last.ipv6 || null,
       ipv6Leak: Boolean(last.ipv6Leak),
       geo: last.geo || {},
       ipScore: last.ipScore || { band: "medium", risk: 0, reasons: [] },
-      verdict: last.verdict || last.level || "watch",
-      verdictLabel: last.verdictLabel || last.levelLabel || "需关注",
-      ipRiskLabel: last.ipRiskLabel || "",
-      summary: last.summary || "",
+      tpsClass: last.kind === "tps" ? last : null,
       checkedAt: last.at,
-      notes: [],
     };
-  } else {
-    base = {
+  }
+  if (!raw) {
+    return {
       ipv4: null,
       ipv6: null,
       ipv6Leak: false,
       geo: {},
       ipScore: { band: "low", risk: 0, reasons: [] },
       verdict: "watch",
-      verdictLabel: "尚未检测",
+      verdictLabel: labels.verdict.unchecked,
       ipRiskLabel: "",
-      summary: "发送一条 Agents 对话，或点重新检测后再发送。回复结束后会出令牌/秒。",
+      summary:
+        lang === "en"
+          ? "Send an Agents chat, or recheck egress and send again. Tok/s appears after the reply."
+          : "发送一条 Agents 对话，或点重新检测后再发送。回复结束后会出令牌/秒。",
       checkedAt: null,
       notes: [],
+      pending,
+      logicVersion: logicVersion(),
+      probePrompt: probeFor(lang),
+      lang,
     };
   }
-  base.pending = Boolean(pending) || store.list().some((s) => s.pending);
-  base.logicVersion = logicVersion();
-  base.probePrompt = QUALITY_PROBE;
-  return base;
+  return {
+    ...raw,
+    pending,
+    logicVersion: logicVersion(),
+    probePrompt: probeFor(lang),
+    lang,
+    ...combineVerdict({
+      ipScore: raw.ipScore,
+      tpsClass: raw.tpsClass,
+      ipv4: raw.ipv4,
+      ipv6: raw.ipv6,
+      ipv6Leak: raw.ipv6Leak,
+      lang,
+    }),
+  };
 }
 
 function buildSample({
@@ -317,14 +328,14 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
 
     if (req.method === "GET" && url.pathname === "/api/status") {
-      json(res, 200, emptyStatus());
+      json(res, 200, statusFor(requestLang(req, url)));
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/refresh") {
       cache = null;
-      const status = await lookupStatus();
+      await lookupStatus();
       notifyClients();
-      json(res, 200, status);
+      json(res, 200, statusFor(requestLang(req, url)));
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/generation/start") {
@@ -355,16 +366,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/samples") {
+      const lang = requestLang(req, url);
       json(
         res,
         200,
-        store.list().map((s) =>
-          presentSample({
-            ...s,
-            sourceLabel: s.sourceLabel || LABELS.source[s.source] || s.source || "未知",
-            levelLabel: s.levelLabel || LABELS.level[s.level] || s.level,
-          }),
-        ),
+        store.list().map((s) => presentSample(s, lang)),
       );
       return;
     }
@@ -405,6 +411,12 @@ const server = http.createServer(async (req, res) => {
       await store.add(sample);
       cache = null;
       json(res, 200, sample);
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/lib/i18n.js") {
+      const file = await readFile(path.join(__dirname, "lib", "i18n.js"));
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      res.end(file);
       return;
     }
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {

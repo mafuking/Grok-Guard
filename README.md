@@ -1,10 +1,10 @@
 # Grok Egress Guard
 
+**中文** | [English](README.en.md)
+
 本机 sidecar：给 **官方登录** 的 Cursor / Grok Build / Grok CLI 做质量与出口检测。默认判定 **v2.0.0**——Grok 看思考和探针，出口 IP 单独看，令牌/秒只作记录。
 
-不是 xAI / Cursor 官方鉴定，也不是 [linux.do 那套 grok2api / 注册机 / 代理池](https://linux.do/t/topic/2688339) 的移植。
-
-**English:** Local sidecar that heuristically checks whether official-login Cursor / Grok looks degraded, and whether your egress IP looks like a datacenter or proxy. Not an official xAI or Cursor verdict.
+不是 xAI / Cursor 官方鉴定。启发式参考了 grok2api 那套 Quality Guard，但本仓库**不是** [代理池 / 注册机](https://linux.do/t/topic/2688339) 的移植，见下方[参考项目](#参考项目)。
 
 ## 它做什么
 
@@ -145,6 +145,12 @@ userscript/              Grok Build 油猴
 ```
 
 改判定逻辑后跑 `npm test`。hooks 脚本路径变了就重新 `npm run install:hooks`。不要再找扩展安装步骤。
+
+## 参考项目
+
+判定启发式（缺思考、`QUALITY_OK` 探针、令牌/秒公式）参考了 [lij768423-svg/grok2api-egress-enhancements](https://github.com/lij768423-svg/grok2api-egress-enhancements) 里的 Quality Guard。
+
+那是给 **grok2api / 代理池 / 多账号** 用的出口熔断和隔离：不健康节点会摘流、换 sticky、换号。本仓库是给 **官方登录** 的本机观察面板，不管理节点、不换号、不拦请求。两边定位不同，不要混装。
 
 ## 许可
 

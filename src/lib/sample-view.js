@@ -1,8 +1,9 @@
 import { labelReason } from "./score.js";
+import { labelsFor, uiFor } from "./i18n.js";
 
 const TITLE_WIDTH = 18;
 const IP_ONLY = /^(?:\d{1,3}\.){3}\d{1,3}$|^未知 IP$/i;
-const SKIP_REMARK = new Set(["机房", "更像宽带", "更像家宽", "机房 IP"]);
+const SKIP_REASON = new Set(["datacenter_asn", "looks_isp"]);
 
 const MODEL_RULES = [
   [/gpt-?5\.6-?sol/i, "GPT-5.6 SOL"],
@@ -67,33 +68,35 @@ export function looksLikeModelId(value) {
   return /^(grok|gpt|claude|composer)[-.\s]/i.test(s);
 }
 
-export function formatIpCell(ipv4, geo = {}) {
+export function formatIpCell(ipv4, geo = {}, lang = "zh") {
   if (!ipv4) return "—";
-  return geo.hosting ? `${ipv4}(机房)` : `${ipv4}(宽带)`;
+  const ui = uiFor(lang);
+  return geo.hosting ? `${ipv4}(${ui.dc})` : `${ipv4}(${ui.ispShort})`;
 }
 
-export function leftoverRemarks(sample) {
+export function leftoverRemarks(sample, lang = "zh") {
+  const ui = uiFor(lang);
   const out = [];
   if (sample.reasoningTokens != null && sample.kind !== "ip") {
-    out.push(`思考 ${sample.reasoningTokens}`);
+    out.push(`${ui.thinking} ${sample.reasoningTokens}`);
   }
-  const labels = sample.reasonLabels || (sample.reasons || []).map(labelReason);
+  const reasons = sample.reasons || [];
   const model = sample.model || "";
   const modelLabel = sample.modelLabel || formatModel(model);
-  for (const item of labels) {
-    const text = String(item || "").trim();
+  for (const code of reasons) {
+    if (SKIP_REASON.has(code)) continue;
+    const text = labelReason(code, lang);
     if (!text) continue;
     if (IP_ONLY.test(text)) continue;
-    if (SKIP_REMARK.has(text)) continue;
     if (text === model || text === modelLabel) continue;
     if (looksLikeModelId(text)) continue;
-    if (/^思考\s/.test(text)) continue;
     if (!out.includes(text)) out.push(text);
   }
   return out;
 }
 
-export function presentSample(sample) {
+export function presentSample(sample, lang = "zh") {
+  const labels = labelsFor(lang);
   const titleFull = sample.titleFull || sample.title || "";
   const title = sample.title || abbreviateTitle(titleFull) || "—";
   const modelLabel = sample.modelLabel || formatModel(sample.model) || "—";
@@ -102,7 +105,10 @@ export function presentSample(sample) {
     title,
     titleFull,
     modelLabel,
-    ipLabel: sample.ipLabel || formatIpCell(sample.ipv4, sample.geo || {}),
-    remarkLabels: sample.pending ? [] : leftoverRemarks({ ...sample, modelLabel }),
+    sourceLabel: labels.source[sample.source] || sample.source || labels.source.unknown,
+    levelLabel: sample.level ? labels.level[sample.level] || sample.level : "",
+    ipLabel: formatIpCell(sample.ipv4, sample.geo || {}, lang),
+    reasonLabels: sample.pending ? [] : (sample.reasons || []).map((code) => labelReason(code, lang)),
+    remarkLabels: sample.pending ? [] : leftoverRemarks({ ...sample, modelLabel }, lang),
   };
 }

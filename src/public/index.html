@@ -90,6 +90,9 @@
     td.remark { color: var(--muted); word-break: break-word; }
     .pager { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
     .muted { color: var(--muted); }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .top h1 { margin: 0 0 6px; }
+    .lang-btn { flex: 0 0 auto; min-width: 56px; margin-top: 2px; }
     .actions { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
     .scope p { margin: 0 0 10px; font-size: 13.5px; color: var(--muted); line-height: 1.65; }
     .scope p:last-child { margin: 0; }
@@ -100,33 +103,38 @@
 </head>
 <body>
   <main>
-    <h1>Grok 出口检测</h1>
-    <p class="lead">官方订阅检测：Grok 看有没有思考 / 探针是否通过；出口 IP 只判断机房和地区，令牌/秒只作记录。</p>
+    <div class="top">
+      <div>
+        <h1 id="title">Grok 出口检测</h1>
+        <p class="lead" id="lead">官方订阅检测：Grok 看有没有思考 / 探针是否通过；出口 IP 只判断机房和地区，令牌/秒只作记录。</p>
+      </div>
+      <button class="ghost lang-btn" id="lang-toggle" type="button" title="Switch to English">EN</button>
+    </div>
     <div class="actions">
       <button id="refresh">重新检测出口</button>
       <button class="ghost" id="copy-probe" type="button">复制质量探针</button>
     </div>
     <div class="row">
       <section class="card">
-        <h2>当前出口</h2>
+        <h2 id="egress-title">当前出口</h2>
         <div class="ip" id="ip">检测中…</div>
         <dl class="meta">
-          <div class="meta-row"><dt>地点</dt><dd id="loc">—</dd></div>
-          <div class="meta-row"><dt>运营商</dt><dd id="isp">—</dd></div>
-          <div class="meta-row"><dt>网络</dt><dd id="asn">—</dd></div>
+          <div class="meta-row"><dt id="dt-loc">地点</dt><dd id="loc">—</dd></div>
+          <div class="meta-row"><dt id="dt-isp">运营商</dt><dd id="isp">—</dd></div>
+          <div class="meta-row"><dt id="dt-asn">网络</dt><dd id="asn">—</dd></div>
         </dl>
         <div id="ip-badges"></div>
       </section>
       <section class="card scope">
-        <h2>适用边界</h2>
-        <p><b>模型质量</b>：Grok 确认没有思考，或探针缺 <code>QUALITY_OK</code>，才标疑似降智。SOL 等无思考模型只备注。</p>
-        <p><b>出口</b>：机房 / 代理 / 国家单独看，不和降智合成。Cursor 官方流量先到 Cursor，本机 IP 管地区和风控。</p>
+        <h2 id="scope-title">适用边界</h2>
+        <p id="scope-quality"><b>模型质量</b>：Grok 确认没有思考，或探针缺 <code>QUALITY_OK</code>，才标疑似降智。SOL 等无思考模型只备注。</p>
+        <p id="scope-egress"><b>出口</b>：机房 / 代理 / 国家单独看，不和降智合成。Cursor 官方流量先到 Cursor，本机 IP 管地区和风控。</p>
         <p id="logic-ver">判定版本 —</p>
       </section>
     </div>
     <section class="card" style="margin-top:12px">
       <h2 class="sample-head">
-        <span>最近样本</span>
+        <span id="samples-title">最近样本</span>
         <span class="sample-tools">
           <span class="muted" id="checked">尚未检测</span>
           <button id="clear" class="danger" type="button">清空样本</button>
@@ -135,14 +143,14 @@
       <table>
         <thead>
           <tr>
-            <th>时间</th>
-            <th>对话</th>
-            <th>来源</th>
-            <th>模型</th>
-            <th>IP</th>
-            <th>令牌/秒</th>
-            <th>判定</th>
-            <th>备注</th>
+            <th id="th-time">时间</th>
+            <th id="th-title">对话</th>
+            <th id="th-source">来源</th>
+            <th id="th-model">模型</th>
+            <th id="th-ip">IP</th>
+            <th id="th-tps">令牌/秒</th>
+            <th id="th-level">判定</th>
+            <th id="th-remark">备注</th>
           </tr>
         </thead>
         <tbody id="rows"><tr><td colspan="8" class="muted">还没有记录。发送 Cursor / Grok Build 对话，或点重新检测。</td></tr></tbody>
@@ -156,11 +164,27 @@
       </div>
     </section>
   </main>
-  <script>
+  <script type="module">
+    import { detectBrowserLang, labelReason, probeFor, uiFor } from "/lib/i18n.js";
+
     const API = location.origin.startsWith("http") ? "" : "http://127.0.0.1:3780";
     const PAGE_SIZE = 15;
     let page = 0;
     let lastSamples = [];
+    let lang = detectBrowserLang();
+
+    function ui() {
+      return uiFor(lang);
+    }
+
+    function locale() {
+      return lang === "en" ? "en-US" : "zh-CN";
+    }
+
+    function q(path) {
+      const join = path.includes("?") ? "&" : "?";
+      return `${API}${path}${join}lang=${lang}`;
+    }
 
     function esc(value) {
       return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -172,8 +196,41 @@
       }[ch]));
     }
 
+    function applyChrome() {
+      const t = ui();
+      document.documentElement.lang = lang === "en" ? "en" : "zh-CN";
+      document.title = t.title;
+      document.getElementById("title").textContent = t.title;
+      document.getElementById("lead").textContent = t.lead;
+      document.getElementById("refresh").textContent = t.refresh;
+      document.getElementById("copy-probe").textContent = t.copyProbe;
+      document.getElementById("egress-title").textContent = t.egress;
+      document.getElementById("dt-loc").textContent = t.loc;
+      document.getElementById("dt-isp").textContent = t.isp;
+      document.getElementById("dt-asn").textContent = t.asn;
+      document.getElementById("scope-title").textContent = t.scope;
+      document.getElementById("scope-quality").innerHTML = `<b>${esc(t.scopeQuality)}</b>${esc(t.scopeQualityBody)}`;
+      document.getElementById("scope-egress").innerHTML = `<b>${esc(t.scopeEgress)}</b>${esc(t.scopeEgressBody)}`;
+      document.getElementById("samples-title").textContent = t.samples;
+      document.getElementById("clear").textContent = t.clear;
+      document.getElementById("th-time").textContent = t.colTime;
+      document.getElementById("th-title").textContent = t.colTitle;
+      document.getElementById("th-source").textContent = t.colSource;
+      document.getElementById("th-model").textContent = t.colModel;
+      document.getElementById("th-ip").textContent = t.colIp;
+      document.getElementById("th-tps").textContent = t.colTps;
+      document.getElementById("th-level").textContent = t.colLevel;
+      document.getElementById("th-remark").textContent = t.colRemark;
+      document.getElementById("prev-page").textContent = t.prev;
+      document.getElementById("next-page").textContent = t.next;
+      const toggle = document.getElementById("lang-toggle");
+      toggle.textContent = t.langBtn;
+      toggle.title = t.langTitle;
+    }
+
     function renderRows(samples) {
       lastSamples = samples;
+      const t = ui();
       const total = samples.length;
       const pages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
       if (page > pages - 1) page = pages - 1;
@@ -182,7 +239,7 @@
       const rows = slice.length
         ? slice.map((s) => {
             const title = s.title || "—";
-            const time = new Date(s.at).toLocaleString("zh-CN", {
+            const time = new Date(s.at).toLocaleString(locale(), {
               month: "2-digit",
               day: "2-digit",
               hour: "2-digit",
@@ -190,12 +247,12 @@
               hour12: false,
             });
             const tps = s.pending
-              ? "正在计时"
+              ? t.pendingTps
               : s.kind === "ip" || s.tps == null
                 ? "—"
                 : Number(s.tps).toFixed(1);
             const level = s.pending ? "——" : (s.levelLabel || s.verdictLabel || s.level || "—");
-            const remark = s.pending ? "——" : ((s.remarkLabels || []).join("、") || "—");
+            const remark = s.pending ? "——" : ((s.remarkLabels || []).join(lang === "en" ? ", " : "、") || "—");
             return `<tr>
               <td class="time">${esc(time)}</td>
               <td class="title" title="${esc(s.titleFull || title)}">${esc(title)}</td>
@@ -207,84 +264,98 @@
               <td class="remark">${esc(remark)}</td>
             </tr>`;
           }).join("")
-        : '<tr><td colspan="8" class="muted">还没有记录。</td></tr>';
+        : `<tr><td colspan="8" class="muted">${esc(t.empty)}</td></tr>`;
       document.getElementById("rows").innerHTML = rows;
       document.getElementById("page-info").textContent = total
-        ? `第 ${page + 1}/${pages} 页 · 共 ${total} 条`
-        : "共 0 条";
+        ? t.page.replace("{page}", String(page + 1)).replace("{pages}", String(pages)).replace("{total}", String(total))
+        : t.none;
       document.getElementById("prev-page").disabled = page <= 0 || !total;
       document.getElementById("next-page").disabled = !total || page >= pages - 1;
     }
 
     async function load() {
+      const t = ui();
       const [status, samples] = await Promise.all([
-        fetch(API + "/api/status").then((r) => r.json()),
-        fetch(API + "/api/samples").then((r) => r.json()),
+        fetch(q("/api/status")).then((r) => r.json()),
+        fetch(q("/api/samples")).then((r) => r.json()),
       ]);
-      const ip = status.ipv4 || status.ipv6 || "未知";
+      const ip = status.ipv4 || status.ipv6 || t.unknown;
       document.getElementById("ip").textContent = ip;
       const g = status.geo || {};
-      document.getElementById("loc").textContent = g.locationText || [g.country, g.region, g.city].filter(Boolean).join(" · ") || "未知";
-      document.getElementById("isp").textContent = g.ispText || g.isp || "未知";
-      document.getElementById("asn").textContent = g.asnText || g.as || "未知";
+      document.getElementById("loc").textContent = g.locationText || [g.country, g.region, g.city].filter(Boolean).join(" · ") || t.unknown;
+      document.getElementById("isp").textContent = g.ispText || g.isp || t.unknown;
+      document.getElementById("asn").textContent = g.asnText || g.as || t.unknown;
       const badges = [];
-      const riskName = status.ipRiskLabel || { low: "低", medium: "中等", high: "高" }[status.ipScore.band] || "未知";
-      badges.push(`<span class="badge ${status.ipScore.band}">风险${riskName}</span>`);
-      if (g.hosting) badges.push('<span class="badge high">机房</span>');
-      if (g.proxy) badges.push('<span class="badge high">代理标记</span>');
-      if (!g.hosting && !g.proxy) badges.push('<span class="badge low">更像宽带</span>');
-      if (status.ipv6Leak) badges.push('<span class="badge high">IPv4/IPv6 出口不一致</span>');
+      const riskName = status.ipRiskLabel || t.unknown;
+      if (status.ipScore?.band) badges.push(`<span class="badge ${status.ipScore.band}">${esc(t.riskPrefix)}${esc(riskName)}</span>`);
+      if (g.hosting) badges.push(`<span class="badge high">${esc(t.hosting)}</span>`);
+      if (g.proxy) badges.push(`<span class="badge high">${esc(t.proxy)}</span>`);
+      if (!g.hosting && !g.proxy) badges.push(`<span class="badge low">${esc(t.residential)}</span>`);
+      if (status.ipv6Leak) badges.push(`<span class="badge high">${esc(labelReason("ipv4_ipv6_mismatch", lang))}</span>`);
       if (status.verdictLabel) {
         badges.unshift(`<span class="badge ${status.verdict || ""}">${esc(status.verdictLabel)}</span>`);
       }
       document.getElementById("ip-badges").innerHTML = badges.join("");
-      document.getElementById("logic-ver").innerHTML = status.logicVersion
-        ? "<b>判定版本</b>：" + esc(status.logicVersion)
-        : "<b>判定版本</b>：—";
+      document.getElementById("logic-ver").innerHTML = `<b>${esc(t.logicVersion)}</b>：${esc(status.logicVersion || "—")}`;
       const pendingN = samples.filter((s) => s.pending).length;
       document.getElementById("checked").textContent = pendingN
         ? pendingN > 1
-          ? `${pendingN} 条正在计时，出结果后自动更新`
-          : "正在计时，出结果后自动更新"
+          ? `${pendingN}${t.timingMany}`
+          : t.timingOne
         : status.checkedAt
-          ? "上次检测：" + new Date(status.checkedAt).toLocaleTimeString()
-          : "尚未检测";
+          ? t.lastCheck + new Date(status.checkedAt).toLocaleTimeString(locale())
+          : t.unchecked;
       renderRows(samples);
     }
 
-    const refreshBtn = document.getElementById("refresh");
-    async function refresh(force) {
-      refreshBtn.disabled = true;
-      refreshBtn.textContent = "检测中…";
+    function setLang(next) {
+      lang = next === "en" ? "en" : "zh";
       try {
-        await fetch(API + "/api/refresh", {
+        localStorage.setItem("grok-guard-lang", lang);
+      } catch {
+        /* ignore */
+      }
+      applyChrome();
+      void load();
+    }
+
+    applyChrome();
+
+    const refreshBtn = document.getElementById("refresh");
+    async function refresh() {
+      const t = ui();
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = t.refreshing;
+      try {
+        await fetch(q("/api/refresh"), {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ source: "manual" }),
         });
         await load();
-        refreshBtn.textContent = "已更新";
-        setTimeout(() => (refreshBtn.textContent = "重新检测出口"), 800);
+        refreshBtn.textContent = t.refreshed;
+        setTimeout(() => (refreshBtn.textContent = ui().refresh), 800);
       } catch (err) {
-        refreshBtn.textContent = "失败，再试";
-        document.getElementById("checked").textContent = "检测失败：" + err;
+        refreshBtn.textContent = t.refreshFail;
+        document.getElementById("checked").textContent = t.detectFail + err;
       } finally {
         refreshBtn.disabled = false;
       }
     }
     const copyProbe = document.getElementById("copy-probe");
     copyProbe.onclick = async () => {
-      const prompt = (await fetch(API + "/api/status").then((r) => r.json()).catch(() => ({}))).probePrompt
-        || "用大约 80 到 120 个英文词解释 TCP 和 UDP 的区别，不要列清单。最后单独一行只写：QUALITY_OK";
+      const t = ui();
+      const prompt = probeFor(lang);
       try {
         await navigator.clipboard.writeText(prompt);
-        copyProbe.textContent = "已复制";
-        setTimeout(() => (copyProbe.textContent = "复制质量探针"), 800);
+        copyProbe.textContent = t.copied;
+        setTimeout(() => (copyProbe.textContent = ui().copyProbe), 800);
       } catch {
-        copyProbe.textContent = "复制失败";
+        copyProbe.textContent = t.copyFail;
       }
     };
-    refreshBtn.onclick = () => refresh(true);
+    refreshBtn.onclick = () => refresh();
+    document.getElementById("lang-toggle").onclick = () => setLang(lang === "zh" ? "en" : "zh");
     document.getElementById("prev-page").onclick = () => {
       page -= 1;
       renderRows(lastSamples);
@@ -294,23 +365,24 @@
       renderRows(lastSamples);
     };
     document.getElementById("clear").onclick = async () => {
-      if (!confirm("确定清空全部样本？")) return;
-      if (!confirm("再确认一次：会从磁盘删掉 samples.json 里的记录，不能恢复。")) return;
+      const t = ui();
+      if (!confirm(t.clearConfirm1)) return;
+      if (!confirm(t.clearConfirm2)) return;
       const btn = document.getElementById("clear");
       btn.disabled = true;
       try {
-        const res = await fetch(API + "/api/samples", { method: "DELETE" });
+        const res = await fetch(q("/api/samples"), { method: "DELETE" });
         if (!res.ok) throw new Error(String(res.status));
         page = 0;
         await load();
       } catch (err) {
-        document.getElementById("checked").textContent = "清空失败：" + err;
+        document.getElementById("checked").textContent = t.clearFail + err;
       } finally {
         btn.disabled = false;
       }
     };
     load().catch((err) => {
-      document.getElementById("ip").textContent = "服务未就绪";
+      document.getElementById("ip").textContent = ui().offline;
       document.getElementById("checked").textContent = String(err);
     });
     const events = new EventSource(API + "/api/events");
