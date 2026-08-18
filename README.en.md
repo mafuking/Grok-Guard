@@ -47,7 +47,7 @@ npm run install:hooks    # once
 npm start                # leave this window open, or use start.bat
 ```
 
-**Reload Window** in Cursor, open http://127.0.0.1:3780, and chat as usual. The workspace must be trusted or hooks will not run.
+Then press `Ctrl+Shift+P` (`Cmd+Shift+P` on macOS) and run **Developer: Reload Window**. Open the [local dashboard](http://127.0.0.1:3780/) and chat as usual. The workspace must be trusted or hooks will not run.
 
 Grok CLI can skip `install:hooks`. The userscript is only for grok.com, below. Default port `3780`.
 

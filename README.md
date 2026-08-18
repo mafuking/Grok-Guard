@@ -47,7 +47,7 @@ npm run install:hooks    # 只跑一次
 npm start                # 窗口一直开着，或双击 start.bat
 ```
 
-Cursor 里 **Reload Window**，打开 http://127.0.0.1:3780，正常对话即可。工作区需先设为信任，hooks 才会跑。
+然后在 Cursor 按 `Ctrl+Shift+P`（macOS 用 `Cmd+Shift+P`），运行 **Developer: Reload Window** 重载窗口。再打开 [本机面板](http://127.0.0.1:3780/)，正常对话即可。工作区需先设为信任，hooks 才会跑。
 
 只用 Grok CLI 时跳过 `install:hooks`。油猴只给 grok.com，见下。默认端口 `3780`。
 
