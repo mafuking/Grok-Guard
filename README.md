@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-本机 sidecar：给 **官方登录** 的 Cursor / Grok Build / Grok CLI 做质量与出口检测。默认判定 **v2.0.0**——Grok 看思考和探针，出口 IP 单独看，令牌/秒只作记录。
+给 **官方登录** 的 Cursor / Grok Build / Grok CLI 做质量与出口检测。
 
 不是 xAI / Cursor 官方鉴定。启发式参考了 grok2api 那套 Quality Guard，见[参考项目](#参考项目)。
 
@@ -44,12 +44,14 @@ sidecar 零运行时依赖（Node 标准库）。
 git clone https://github.com/mafuking/grok-egress-guard.git
 cd grok-egress-guard
 npm run install:hooks    # 只跑一次
-npm start                # 窗口一直开着，或双击 start.bat
+npm start                # 窗口一直开着，Windows可以双击 start.bat
 ```
 
-然后在 Cursor 按 `Ctrl+Shift+P`（macOS 用 `Cmd+Shift+P`），运行 **Developer: Reload Window** 重载窗口。再打开 [本机面板](http://127.0.0.1:3780/)，正常对话即可。工作区需先设为信任，hooks 才会跑。
+Cursor： 按 `Ctrl+Shift+P`（macOS 用 `Cmd+Shift+P`），运行 **Developer: Reload Window** 重载窗口。
+再打开 [本机面板](http://127.0.0.1:3780/)，正常对话即可，工作区需先设为信任。
 
-只用 Grok CLI 时跳过 `install:hooks`。油猴只给 grok.com，见下。默认端口 `3780`。
+只用 Grok CLI 时可跳过 `install:hooks`。
+油猴只给 grok.com，见下。默认端口 `3780`。
 
 ### Grok Build（可选）
 
