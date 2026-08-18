@@ -38,22 +38,18 @@ sidecar 零运行时依赖（Node 标准库）。
 
 ## 安装
 
-已装 **Node.js 22.5+**（读 Cursor 本地库要用）。不用 `npm install`，也没有扩展。
+需要 **Node.js 22.5+**。不用 `npm install`，也没有扩展。
 
 ```bash
 git clone https://github.com/mafuking/grok-egress-guard.git
 cd grok-egress-guard
 npm run install:hooks    # 只跑一次
-npm start                # 窗口一直开着；或双击 start.bat
+npm start                # 窗口一直开着，或双击 start.bat
 ```
 
-然后 Cursor 里 **Reload Window**，打开 http://127.0.0.1:3780，正常对话即可。Cursor 工作区需要是信任的，用户级 hooks 才会跑。
+Cursor 里 **Reload Window**，打开 http://127.0.0.1:3780，正常对话即可。工作区需先设为信任，hooks 才会跑。
 
-Grok CLI 可以不跑第 2 步。油猴只给 Grok 网页用。
-
-sidecar 和 Cursor 走同一条 TUN / 代理，面板 IP 才和 Agent 出口一致。想主动测 Grok：面板里复制质量探针，最后一行应是 `QUALITY_OK`。
-
-端口默认 `3780`，可用 `PORT` 改。
+只用 Grok CLI 时跳过 `install:hooks`。油猴只给 grok.com，见下。默认端口 `3780`。
 
 ### Grok Build（可选）
 
@@ -107,8 +103,6 @@ userscript/              Grok Build 油猴
 ## 参考项目
 
 判定启发式（缺思考、`QUALITY_OK` 探针、令牌/秒公式）参考了 [lij768423-svg/grok2api-egress-enhancements](https://github.com/lij768423-svg/grok2api-egress-enhancements) 里的 Quality Guard。
-
-那是给 **grok2api / 代理池 / 多账号** 用的出口熔断和隔离：不健康节点会摘流、换 sticky、换号。本仓库是给 **官方登录** 的本机观察面板，不管理节点、不换号、不拦请求。两边定位不同，不要混装。
 
 ## 许可
 

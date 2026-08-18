@@ -38,7 +38,7 @@ The sidecar has zero runtime npm dependencies (Node stdlib).
 
 ## Install
 
-You need **Node.js 22.5+** (Cursor’s local DB is read with `node:sqlite`). No `npm install`, and no extension.
+You need **Node.js 22.5+**. No `npm install`, and no extension.
 
 ```bash
 git clone https://github.com/mafuking/grok-egress-guard.git
@@ -47,13 +47,9 @@ npm run install:hooks    # once
 npm start                # leave this window open, or use start.bat
 ```
 
-Then **Reload Window** in Cursor and open http://127.0.0.1:3780. Chat as usual. The workspace must be trusted or user-level hooks will not run.
+**Reload Window** in Cursor, open http://127.0.0.1:3780, and chat as usual. The workspace must be trusted or hooks will not run.
 
-Grok CLI can skip `install:hooks`. The userscript is only for the Grok website.
-
-Put the sidecar and Cursor on the same TUN / proxy or the dashboard IP will not match Agent egress. To probe Grok, copy the quality prompt from the dashboard; the last line should be `QUALITY_OK`.
-
-Default port `3780` (`PORT` to change).
+Grok CLI can skip `install:hooks`. The userscript is only for grok.com, below. Default port `3780`.
 
 ### Grok Build (optional)
 
@@ -107,8 +103,6 @@ Run `npm test` after changing verdict logic. If hook script paths change, run `n
 ## Related work
 
 The heuristics (missing thinking, `QUALITY_OK` probe, tokens/sec formula) were informed by the Quality Guard in [lij768423-svg/grok2api-egress-enhancements](https://github.com/lij768423-svg/grok2api-egress-enhancements).
-
-That project is an egress fuse for **grok2api / proxy pools / multi-account** setups: unhealthy nodes are isolated, stickies are rotated, accounts are switched. This repo is a local observer for **official login**. It does not manage nodes, switch accounts, or block requests. Do not treat them as the same stack.
 
 ## License
 
