@@ -4,9 +4,9 @@ import path from "node:path";
 import { estimateTokens } from "./tokens.js";
 
 function pickSession(sessions, conversationId) {
-  if (conversationId) {
-    const hit = [...sessions].reverse().find((s) => s.conversationId === conversationId);
-    if (hit) return hit;
+  const id = String(conversationId || "").trim();
+  if (id) {
+    return [...sessions].reverse().find((s) => s.conversationId === id) || null;
   }
   return sessions[sessions.length - 1] || null;
 }
@@ -53,6 +53,9 @@ export function createGeneration(dataDir) {
         model: partial.model || "",
         conversationId: partial.conversationId || "",
       };
+      if (session.conversationId) {
+        sessions = sessions.filter((s) => s.conversationId !== session.conversationId);
+      }
       sessions.push(session);
       await persist();
       return session;

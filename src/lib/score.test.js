@@ -1,16 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  classifyTpsV2,
-  combineVerdictV2,
+  classifyTps,
+  combineVerdict,
   expectsThinking,
   isProbeText,
   computeTps,
 } from "./score.js";
-import { classifyTps as classifyTpsV1, combineVerdict as combineVerdictV1 } from "./score.v1.js";
 
 test("Grok missing thinking is hard when reasoning is known zero", () => {
-  const got = classifyTpsV2({
+  const got = classifyTps({
     tps: 80,
     windowMs: 5000,
     tokens: 200,
@@ -23,7 +22,7 @@ test("Grok missing thinking is hard when reasoning is known zero", () => {
 });
 
 test("unknown reasoning does not hard-fail Grok", () => {
-  const got = classifyTpsV2({
+  const got = classifyTps({
     tps: 80,
     windowMs: 5000,
     tokens: 200,
@@ -36,7 +35,7 @@ test("unknown reasoning does not hard-fail Grok", () => {
 });
 
 test("high TPS with thinking stays ok", () => {
-  const got = classifyTpsV2({
+  const got = classifyTps({
     tps: 451,
     windowMs: 1429,
     tokens: 645,
@@ -49,7 +48,7 @@ test("high TPS with thinking stays ok", () => {
 });
 
 test("burst does not become likely_degraded or watch", () => {
-  const classified = classifyTpsV2({
+  const classified = classifyTps({
     tps: 840,
     windowMs: 400,
     tokens: 80,
@@ -58,7 +57,7 @@ test("burst does not become likely_degraded or watch", () => {
     requireThinking: true,
   });
   assert.equal(classified.level, "burst");
-  const combined = combineVerdictV2({
+  const combined = combineVerdict({
     ipScore: { band: "medium", risk: 45, reasons: ["datacenter_asn"] },
     tpsClass: { ...classified, tps: 840 },
     ipv4: "23.95.226.14",
@@ -67,7 +66,7 @@ test("burst does not become likely_degraded or watch", () => {
 });
 
 test("probe without QUALITY_OK is hard", () => {
-  const got = classifyTpsV2({
+  const got = classifyTps({
     tps: 40,
     windowMs: 4000,
     tokens: 90,
@@ -81,23 +80,6 @@ test("probe without QUALITY_OK is hard", () => {
   assert.deepEqual(got.reasons, ["probe_failed"]);
 });
 
-test("v1 still treats hard TPS as degraded", () => {
-  const classified = classifyTpsV1({
-    tps: 1200,
-    windowMs: 2000,
-    tokens: 400,
-    reasoningTokens: 100,
-    requireThinking: false,
-  });
-  assert.equal(classified.level, "hard");
-  const combined = combineVerdictV1({
-    ipScore: { band: "low", risk: 0, reasons: ["looks_isp"] },
-    tpsClass: { ...classified, tps: 1200 },
-    ipv4: "1.1.1.1",
-  });
-  assert.equal(combined.verdict, "likely_degraded");
-});
-
 test("expectsThinking is Grok-only", () => {
   assert.equal(expectsThinking("cursor-grok-4.6-xhigh-fast", "cursor-hook"), true);
   assert.equal(expectsThinking("gpt-5.6-sol-high", "cursor-hook"), false);
@@ -106,7 +88,7 @@ test("expectsThinking is Grok-only", () => {
   assert.equal(isProbeText("hello"), false);
 });
 
-test("TPS formula unchanged", () => {
+test("TPS formula is output tokens over generation window", () => {
   const got = computeTps(200, 3000, 1000);
   assert.equal(got.windowMs, 2000);
   assert.equal(got.tps, 100);

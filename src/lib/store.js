@@ -15,6 +15,9 @@ export function createStore(dataDir, onAdd) {
     } catch {
       samples = [];
     }
+    const n = samples.length;
+    samples = samples.filter((s) => !s.pending);
+    if (samples.length !== n) await persist();
   }
 
   async function persist() {

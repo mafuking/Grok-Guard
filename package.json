@@ -10,8 +10,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test src/lib/score.test.js",
-    "ext:compile": "npm --prefix cursor-extension run compile",
-    "install:cursor": "node scripts/install-cursor.mjs"
+    "test": "node --test src/lib/*.test.js",
+    "install:hooks": "node scripts/install-hooks.mjs"
   }
 }

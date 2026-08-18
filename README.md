@@ -29,13 +29,12 @@
 
 ```
 Cursor Agent  ── hooks ──►  本机 :3780 sidecar  ──►  浏览器面板
-Cursor 扩展   ◄── /api/status
 Grok Build    ── 油猴 ──►  /api/sample
 Grok CLI      ── 监视 ~/.grok/sessions
 出口查询      ── ipify + ip-api.com（只查 IP，不传对话）
 ```
 
-sidecar 零运行时依赖（Node 标准库）。扩展编译需要 TypeScript。
+sidecar 零运行时依赖（Node 标准库）。
 
 ## 环境
 
@@ -48,55 +47,45 @@ Windows / macOS / Linux 都能跑 sidecar。Cursor 对话标题和模型读取�
 ## 安装
 
 ```bash
-git clone <your-fork-or-repo-url> grok-egress-guard
+git clone https://github.com/mafuking/grok-egress-guard.git
 cd grok-egress-guard
 ```
 
-仓库本身不用 `npm install`。只有装 Cursor 扩展时才需要进 `cursor-extension` 装编译依赖。
+仓库本身不用 `npm install`。**没有 Cursor 扩展**，结果一律看浏览器面板。
+
+### 最短路径
+
+```bash
+npm start               # 本机面板 http://127.0.0.1:3780
+npm run install:hooks   # 只写 Cursor Agents 的 hooks，不装扩展
+# Reload Window 后正常对话，结果看浏览器面板
+```
+
+只用 Grok Build / Grok CLI、不用 Cursor Agents 的人，`install:hooks` 也可以不跑。主要用 Agents 的话，跑一次即可。
 
 ### 1. 启动本机服务
 
-Windows 可双击 `start.bat`，或任意系统：
+Windows 可双击 `start.bat`，或任意系统执行 `npm start`。打开 http://127.0.0.1:3780
 
-```bash
-npm start
-```
+自检：`npm test`
 
-打开 http://127.0.0.1:3780
+端口默认 `3780`，可用环境变量 `PORT` 改。
 
-自检：
+### 2. 接入 Cursor Agents
 
-```bash
-npm test
-```
+`npm run install:hooks` 只把三条 hook 合并进 `~/.cursor/hooks.json`（已有其他 hook 会保留），**不装扩展**。
 
-端口默认 `3780`，可用环境变量 `PORT` 改。扩展默认也指向这个地址。
-
-### 2. 接入 Cursor（推荐）
-
-在仓库根目录执行一次：
-
-```bash
-npm run install:cursor
-```
-
-脚本会：
-
-1. 编译侧边栏扩展
-2. 装到 `~/.cursor/extensions/local.grok-egress-guard-1.0.0`
-3. 把三条 hook 合并进 `~/.cursor/hooks.json`（已有其他 hook 会保留）
-
-然后在 Cursor 里：
+然后：
 
 1. `Ctrl+Shift+P`（macOS `Cmd+Shift+P`）→ **Developer: Reload Window**
-2. 左侧活动栏点地球图标，看「综合判断」
-3. 先让 sidecar 保持运行，再发一条 Agent 对话
+2. 先让 sidecar 保持运行，再发一条 Agent 对话
+3. 打开 http://127.0.0.1:3780 看综合判断和最近样本
 
 手动安装也可以：把 `hooks/hooks.json.example` 里的路径改成你的克隆目录，写入用户级 `~/.cursor/hooks.json`（Windows 一般是 `%USERPROFILE%\.cursor\hooks.json`）。事件对应：
 
 | Cursor 事件 | 脚本 | 作用 |
 |-------------|------|------|
-| `beforeSubmitPrompt` | `hooks/on-submit.mjs` | 开一条待计时样本 |
+| `beforeSubmitPrompt` | `hooks/on-submit.mjs` | 开始计时 |
 | `afterAgentThought` | `hooks/on-thought.mjs` | 累计思考 token |
 | `afterAgentResponse` | `hooks/on-response.mjs` | 收尾并出判定 |
 
@@ -119,10 +108,10 @@ sidecar 启动后会监视 `~/.grok/sessions`。用官方 CLI 聊完一轮，有
 
 1. 保持 sidecar 开着
 2. 用你日常的官方登录方式发一条对话
-3. 面板或 Cursor 侧边栏看综合判断
+3. 打开 http://127.0.0.1:3780 看综合判断
 4. 想主动测质量：点「复制质量探针」，把提示发给 **Grok**，最后一行应出现 `QUALITY_OK`
 
-把 sidecar 和 Cursor 放在同一条 TUN / 同一套代理下，状态栏 IP 才和 Agent 终端出口一致。
+把 sidecar 和 Cursor 放在同一条 TUN / 同一套代理下，面板上的 IP 才和 Agent 终端出口一致。
 
 ### 各产品出口 IP 分别代表什么
 
@@ -130,35 +119,9 @@ sidecar 启动后会监视 `~/.grok/sessions`。用官方 CLI 聊完一轮，有
 |------|----------------|----------------|
 | **Grok Build** | 浏览器直连 xAI，IP 就是对方看到的 | 油猴尽量读 usage；没有 reasoning 标「未知」 |
 | **Grok CLI** | 本机出口 | `~/.grok/sessions` 官方 `reasoningTokens` |
-| **Cursor 官方** | 流量先到 Cursor。状态栏看的是本机 / 代理出口 | hook 估算；Cursor 里的 Grok 才强制思考 |
+| **Cursor 官方** | 流量先到 Cursor。面板看的是本机 / 代理出口 | hook 估算；Cursor 里的 Grok 才强制思考 |
 
-主要用 Cursor 的话，**以侧边栏「综合判断」为准**。机房 IP 仍会标出来，但 v2 不会因此写成降智。
-
-## 回滚到 v1（吞吐 + IP 合成总评）
-
-v1 钉在标签 `v1-tps-ip-verdict`。两种回法：
-
-**不改代码，只切判定（推荐先试）：**
-
-```bash
-# Windows cmd
-set GROK_GUARD_LOGIC=v1
-npm start
-
-# bash / PowerShell
-# GROK_GUARD_LOGIC=v1 npm start    (bash)
-# $env:GROK_GUARD_LOGIC="v1"; npm start    (PowerShell)
-```
-
-**整棵树回到 v1：**
-
-```bash
-git checkout v1-tps-ip-verdict
-```
-
-回到 v2：`git checkout master`，并确认没有 `GROK_GUARD_LOGIC=v1`。
-
-v1 口径：硬吞吐 1000 → 疑似降智；软吞吐 / 短窗 / 中等 IP 风险 → 需关注。
+主要用 Cursor 的话，**以本机面板为准**。机房 IP 仍会标出来，但不会因此写成降智。
 
 ## 隐私与边界
 
@@ -173,17 +136,15 @@ v1 口径：硬吞吐 1000 → 疑似降智；软吞吐 / 短窗 / 中等 IP 风
 
 ```text
 src/server.js            本机 HTTP + SSE
-src/lib/score.js         v2 判定（默认）
-src/lib/score.v1.js      冻结的 v1
+src/lib/score.js         判定（v2.0.0）
 src/lib/ip.js            出口与 Geo
 src/lib/grok-watch.js    Grok CLI 会话监视
 src/lib/cursor-meta.js   读 Cursor 本地库
 hooks/                   Cursor Agent hooks
-cursor-extension/        侧边栏扩展
 userscript/              Grok Build 油猴
 ```
 
-改判定逻辑后跑 `npm test`。扩展改完后重新 `npm run install:cursor`（或 `npm run ext:compile` 再手动拷）。
+改判定逻辑后跑 `npm test`。hooks 脚本路径变了就重新 `npm run install:hooks`。不要再找扩展安装步骤。
 
 ## 许可
 

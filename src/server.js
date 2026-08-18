@@ -197,17 +197,6 @@ async function startGeneration(body = {}) {
     model = model || meta.model || "";
   }
   const sampleId = randomUUID();
-  const pending = buildSample({
-    id: sampleId,
-    pending: true,
-    source,
-    titleFull,
-    model,
-    ipv4: status.ipv4,
-    ipv6: status.ipv6,
-    geo: status.geo,
-  });
-  await store.add(pending);
   await generation.start({
     id: sampleId,
     sampleId,
@@ -227,7 +216,7 @@ async function startGeneration(body = {}) {
     },
   });
   cache = null;
-  return { ...status, pending: true };
+  return status;
 }
 
 async function finishGeneration(text, conversationId) {
@@ -259,6 +248,10 @@ async function finishGeneration(text, conversationId) {
     probe,
     marker,
   });
+  if (!replyTokens && !reasoningTokens) {
+    cache = null;
+    return { ignored: true };
+  }
   const sample = buildSample({
     id: session.sampleId || session.id,
     source: session.source,
@@ -276,12 +269,9 @@ async function finishGeneration(text, conversationId) {
     measured,
     classified,
   });
-  const patch = { ...sample, pending: false };
-  delete patch.at;
-  const updated = session.sampleId ? await store.update(session.sampleId, patch) : null;
-  if (!updated) await store.add({ ...sample, pending: false });
+  await store.add({ ...sample, pending: false });
   cache = null;
-  return updated || sample;
+  return sample;
 }
 
 function json(res, code, body) {

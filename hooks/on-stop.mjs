@@ -1,5 +1,9 @@
 import { readStdinJson, post } from "./read-stdin.mjs";
 
-await readStdinJson();
-await post("/api/generation/finish", { text: "" });
+const input = await readStdinJson();
+await post("/api/generation/finish", {
+  text: "",
+  conversationId:
+    input.conversation_id || input.conversationId || input.composerId || input.composer_id || "",
+});
 process.stdout.write("{}");

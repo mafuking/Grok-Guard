@@ -1,7 +1,6 @@
-/** v2 default: thinking + probe first. High TPS is a note, not 降智. Set GROK_GUARD_LOGIC=v1 to roll back. */
+/** Community heuristic. Not an official xAI / Cursor verdict. */
 
-import * as v1 from "./score.v1.js";
-
+export const LOGIC_VERSION = "v2.0.0";
 export const SOFT_TPS = 200;
 export const HARD_TPS = 1000;
 export const MIN_GEN_WINDOW_MS = 1000;
@@ -9,23 +8,54 @@ export const THINKING_OUTPUT_FLOOR = 32;
 export const QUALITY_PROBE =
   "用大约 80 到 120 个英文词解释 TCP 和 UDP 的区别，不要列清单。最后单独一行只写：QUALITY_OK";
 
-export const LOGIC_V1 = "v1.0.0";
-export const LOGIC_V2 = "v2.0.0";
-
 export function logicVersion() {
-  return process.env.GROK_GUARD_LOGIC === "v1" ? LOGIC_V1 : LOGIC_V2;
-}
-
-function isV1() {
-  return logicVersion().startsWith("v1.");
+  return LOGIC_VERSION;
 }
 
 export function computeTps(outputTokens, durationMs, firstTokenMs) {
-  return v1.computeTps(outputTokens, durationMs, firstTokenMs);
+  const tokens = Number(outputTokens) || 0;
+  const duration = Number(durationMs) || 0;
+  const ttft = Math.max(0, Number(firstTokenMs) || 0);
+  const windowMs = Math.max(1, duration - ttft);
+  return {
+    tps: (tokens * 1000) / windowMs,
+    windowMs,
+    tokens,
+    durationMs: duration,
+    firstTokenMs: ttft,
+  };
 }
 
 export function scoreIp(info) {
-  return v1.scoreIp(info);
+  const reasons = [];
+  let risk = 0;
+
+  if (info.hosting) {
+    risk += 45;
+    reasons.push("datacenter_asn");
+  }
+  if (info.proxy) {
+    risk += 25;
+    reasons.push("proxy_flag");
+  }
+  if (info.mobile) {
+    risk += 10;
+    reasons.push("mobile");
+  }
+  if (info.countryCode && info.countryCode !== "US") {
+    risk += 15;
+    reasons.push(`region_${info.countryCode}`);
+  }
+  if (!info.hosting && !info.proxy) {
+    reasons.push("looks_isp");
+  }
+
+  risk = Math.min(100, risk);
+  let band = "low";
+  if (risk >= 60) band = "high";
+  else if (risk >= 30) band = "medium";
+
+  return { risk, band, reasons };
 }
 
 export function expectsThinking(model = "", source = "") {
@@ -38,11 +68,7 @@ export function isProbeText(text) {
   return raw.includes("QUALITY_OK") && /TCP/i.test(raw);
 }
 
-export function classifyTps(args) {
-  return isV1() ? v1.classifyTps(args) : classifyTpsV2(args);
-}
-
-export function classifyTpsV2({
+export function classifyTps({
   tps,
   windowMs,
   tokens,
@@ -82,32 +108,7 @@ export function classifyTpsV2({
   return { level: "ok", reasons };
 }
 
-export function combineVerdict(args) {
-  return isV1() ? v1.combineVerdict(args) : combineVerdictV2(args);
-}
-
-export function combineVerdictV2({ ipScore, tpsClass, ipv4, ipv6, ipv6Leak }) {
-  const notes = [];
-  if (ipv6Leak) notes.push("ipv4_ipv6_mismatch");
-
-  let verdict = "likely_ok";
-  if (tpsClass?.level === "hard") verdict = "likely_degraded";
-  else if (ipScore.band === "high") verdict = "ip_risky";
-
-  return {
-    verdict,
-    verdictLabel: LABELS.verdict[verdict],
-    ipRiskLabel: LABELS.band[ipScore.band],
-    logicVersion: LOGIC_V2,
-    summary: summarizeV2(verdict, ipScore, tpsClass, ipv4),
-    notes,
-    noteLabels: notes.map(labelReason),
-    ipv4,
-    ipv6,
-  };
-}
-
-const LABELS_V2 = {
+export const LABELS = {
   verdict: {
     likely_ok: "看起来正常",
     watch: "需关注",
@@ -135,10 +136,14 @@ const LABELS_V2 = {
     probe_ok: "探针通过",
     ipv4_ipv6_mismatch: "IPv4/IPv6 出口不一致",
   },
-  source: { ...v1.LABELS.source },
+  source: {
+    "grok-build": "Grok Build",
+    "cursor-hook": "Cursor 发送",
+    manual: "手动检测",
+    "manual-test": "手动测试",
+    unknown: "未知",
+  },
 };
-
-export const LABELS = isV1() ? v1.LABELS : LABELS_V2;
 
 export function labelReason(code) {
   if (LABELS.reason[code]) return LABELS.reason[code];
@@ -146,7 +151,28 @@ export function labelReason(code) {
   return code;
 }
 
-function summarizeV2(verdict, ipScore, tpsClass, ipv4) {
+export function combineVerdict({ ipScore, tpsClass, ipv4, ipv6, ipv6Leak }) {
+  const notes = [];
+  if (ipv6Leak) notes.push("ipv4_ipv6_mismatch");
+
+  let verdict = "likely_ok";
+  if (tpsClass?.level === "hard") verdict = "likely_degraded";
+  else if (ipScore.band === "high") verdict = "ip_risky";
+
+  return {
+    verdict,
+    verdictLabel: LABELS.verdict[verdict],
+    ipRiskLabel: LABELS.band[ipScore.band],
+    logicVersion: LOGIC_VERSION,
+    summary: summarize(verdict, ipScore, tpsClass, ipv4),
+    notes,
+    noteLabels: notes.map(labelReason),
+    ipv4,
+    ipv6,
+  };
+}
+
+function summarize(verdict, ipScore, tpsClass, ipv4) {
   const ip = ipv4 || "未知";
   const tps = tpsClass && tpsClass.tps != null ? `${tpsClass.tps.toFixed(1)} 令牌/秒` : "暂无样本";
   const risk = LABELS.band[ipScore.band];
