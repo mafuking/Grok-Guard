@@ -45,9 +45,7 @@ git clone https://github.com/mafuking/grok-egress-guard.git
 # 先写 hooks 再开面板；写失败也会继续开。窗口不要关。
 ```
 
-然后在 Cursor 按 `Ctrl+Shift+P`（macOS 用 `Cmd+Shift+P`），运行 **Developer: Reload Window**。打开 [本机面板](http://127.0.0.1:3780/)，正常对话即可。工作区需先设为信任。
-
-`npm run install:hooks`：只写 hooks、不启动。油猴：grok.com。
+`Ctrl+Shift+P`（Mac：`Cmd+Shift+P`）→ **Developer: Reload Window**，让刚写入的 hooks 生效。再打开 [本机面板](http://127.0.0.1:3780/)。工作区需先设为信任。
 
 ### Grok Build（可选）
 
@@ -80,7 +78,7 @@ hooks/                   Cursor Agent hooks
 userscript/              Grok Build 油猴
 ```
 
-`npm test`。启动时会顺带写 hooks。手改示例见 `hooks/hooks.json.example`。
+`npm test`。启动时会写 hooks。只写不启动：`npm run install:hooks`。手改示例见 `hooks/hooks.json.example`。
 
 ## 参考项目
 

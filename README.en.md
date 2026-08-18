@@ -45,9 +45,7 @@ git clone https://github.com/mafuking/grok-egress-guard.git
 # writes hooks, then starts; hooks failure still starts. leave the window open.
 ```
 
-Then press `Ctrl+Shift+P` (`Cmd+Shift+P` on macOS) and run **Developer: Reload Window**. Open the [local dashboard](http://127.0.0.1:3780/) and chat as usual. The workspace must be trusted.
-
-`npm run install:hooks`: write hooks only. Userscript: grok.com.
+`Ctrl+Shift+P` (`Cmd+Shift+P` on Mac) → **Developer: Reload Window** so the new hooks load. Then open the [local dashboard](http://127.0.0.1:3780/). The workspace must be trusted.
 
 ### Grok Build (optional)
 
@@ -80,7 +78,7 @@ hooks/                   Cursor Agent hooks
 userscript/              Grok Build userscript
 ```
 
-`npm test`. Startup writes hooks as well. Manual example: `hooks/hooks.json.example`.
+`npm test`. Startup writes hooks. Hooks only: `npm run install:hooks`. Manual example: `hooks/hooks.json.example`.
 
 ## Related work
 
