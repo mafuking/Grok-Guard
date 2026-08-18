@@ -3,19 +3,19 @@
   "hooks": {
     "beforeSubmitPrompt": [
       {
-        "command": "node /absolute/path/to/grok-egress-guard/hooks/on-submit.mjs",
+        "command": "node /absolute/path/to/grok-guard/hooks/on-submit.mjs",
         "timeout": 8
       }
     ],
     "afterAgentThought": [
       {
-        "command": "node /absolute/path/to/grok-egress-guard/hooks/on-thought.mjs",
+        "command": "node /absolute/path/to/grok-guard/hooks/on-thought.mjs",
         "timeout": 8
       }
     ],
     "afterAgentResponse": [
       {
-        "command": "node /absolute/path/to/grok-egress-guard/hooks/on-response.mjs",
+        "command": "node /absolute/path/to/grok-guard/hooks/on-response.mjs",
         "timeout": 8
       }
     ]

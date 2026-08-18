@@ -1,8 +1,8 @@
-# Grok Egress Guard
+# Grok-Guard
 
 **中文** | [English](README.en.md)
 
-给 **官方登录** 的 Cursor / Grok Build / Grok CLI 做质量与出口检测。
+给 **官方登录** 的 Cursor / Grok Build / Grok CLI 检测模型是否降智，并做 IP 质量检测。
 
 不是 xAI / Cursor 官方鉴定。启发式参考了 grok2api 那套 Quality Guard，见[参考项目](#参考项目)。
 
@@ -39,7 +39,7 @@ Grok CLI      ── 监视 ~/.grok/sessions
 需要 **Node.js 22.5+**。不用 `npm install`，也没有扩展。
 
 ```bash
-git clone https://github.com/mafuking/grok-egress-guard.git
+git clone https://github.com/mafuking/grok-guard.git
 # Windows: 双击 start.bat
 # 其它系统: npm start  或  ./start.sh
 # 先写 hooks 再开面板；写失败也会继续开。窗口不要关。

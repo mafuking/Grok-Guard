@@ -490,5 +490,5 @@ startGrokWatch({
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Grok Egress Guard  http://127.0.0.1:${PORT}`);
+  console.log(`Grok-Guard  http://127.0.0.1:${PORT}`);
 });

@@ -150,8 +150,8 @@ const LABELS_EN = {
 };
 
 const UI_ZH = {
-  title: "Grok 出口检测",
-  lead: "官方订阅检测：Grok 看有没有思考 / 探针是否通过；出口 IP 只判断机房和地区，令牌/秒只作记录。",
+  title: "Grok-Guard",
+  lead: "给官方登录检测模型是否降智，并做 IP 质量检测。Grok 看思考和探针；IP 只看机房和地区；令牌/秒只作记录。",
   refresh: "重新检测出口",
   refreshing: "检测中…",
   refreshed: "已更新",
@@ -209,8 +209,8 @@ const UI_ZH = {
 };
 
 const UI_EN = {
-  title: "Grok egress check",
-  lead: "Official-login check: for Grok, look at thinking and the probe; egress IP is datacenter/region only; tok/s is recorded, not a verdict.",
+  title: "Grok-Guard",
+  lead: "Detect model degradation and check IP quality. For Grok, look at thinking and the probe; IP is datacenter/region only; tok/s is recorded, not a verdict.",
   refresh: "Recheck egress",
   refreshing: "Checking…",
   refreshed: "Updated",

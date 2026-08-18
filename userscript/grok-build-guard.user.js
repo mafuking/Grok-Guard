@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         Grok Egress Guard
-// @namespace    local.grok-egress-guard
+// @name         Grok-Guard
+// @namespace    local.grok-guard
 // @version      1.2.0
 // @description  On Grok Build send: check local egress IP; after stream, report usage and tok/s
 // @match        https://grok.com/*

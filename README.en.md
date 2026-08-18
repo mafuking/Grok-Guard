@@ -1,8 +1,8 @@
-# Grok Egress Guard
+# Grok-Guard
 
 [中文](README.md) | **English**
 
-Quality and egress checks for **official-login** Cursor, Grok Build, and Grok CLI.
+Detect model degradation and check IP quality for **official-login** Cursor, Grok Build, and Grok CLI.
 
 This is not an official xAI or Cursor verdict. The heuristics were informed by the grok2api Quality Guard. See [Related work](#related-work).
 
@@ -39,7 +39,7 @@ Egress lookup ── ipify + ip-api.com (IP only, no chat text)
 You need **Node.js 22.5+**. No `npm install`, and no extension.
 
 ```bash
-git clone https://github.com/mafuking/grok-egress-guard.git
+git clone https://github.com/mafuking/grok-guard.git
 # Windows: double-click start.bat
 # elsewhere: npm start  or  ./start.sh
 # writes hooks, then starts; hooks failure still starts. leave the window open.

@@ -1,12 +1,12 @@
 {
-  "name": "grok-egress-guard",
+  "name": "grok-guard",
   "version": "1.1.0",
   "private": true,
   "license": "MIT",
   "engines": {
     "node": ">=22.5.0"
   },
-  "description": "Local quality and egress probe for official-login Cursor, Grok Build, and Grok CLI",
+  "description": "Detect model degradation and check IP quality for official-login Cursor, Grok Build, and Grok CLI",
   "type": "module",
   "scripts": {
     "start": "node scripts/boot.mjs",
