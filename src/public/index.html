@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grok Egress Guard</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101114;
+      --card: #1a1c21;
+      --line: #2a2d35;
+      --text: #ececec;
+      --muted: #9aa0aa;
+      --ok: #3dd68c;
+      --watch: #f5c14a;
+      --bad: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.5 ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main { max-width: 1120px; margin: 0 auto; padding: 28px 20px 64px; }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    p.lead { color: var(--muted); margin: 0 0 22px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .card h2 { font-size: 13px; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+    .sample-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .sample-head .muted { font-weight: 400; }
+    .sample-tools { display: flex; align-items: center; gap: 8px; }
+    .ip { font-size: 22px; font-weight: 650; letter-spacing: 0.02em; margin: 0 0 12px; }
+    .meta { margin: 0 0 12px; display: grid; gap: 6px; }
+    .meta-row { display: grid; grid-template-columns: 52px 1fr; gap: 8px; font-size: 13px; }
+    .meta-row dt { color: var(--muted); margin: 0; }
+    .meta-row dd { margin: 0; }
+    #ip-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      margin-right: 6px;
+    }
+    .low { background: #163524; color: var(--ok); }
+    .medium, .watch, .burst, .soft, .ip_risky { background: #3a2f12; color: var(--watch); }
+    .high, .hard, .likely_degraded { background: #3a1616; color: var(--bad); }
+    .likely_ok { background: #163524; color: var(--ok); }
+    button {
+      background: #2d6cdf;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.ghost { background: #2a2d35; }
+    button.danger { background: #8b2e2e; }
+    button:disabled { opacity: .55; cursor: default; }
+    pre {
+      white-space: pre-wrap;
+      background: #0d0e11;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th:nth-child(1), td.time { width: 88px; white-space: nowrap; }
+    th:nth-child(2), td.title { width: 148px; }
+    th:nth-child(3), td.source { width: 88px; white-space: nowrap; }
+    th:nth-child(4), td.model { width: 108px; white-space: nowrap; }
+    th:nth-child(5), td.ipcell { width: 168px; white-space: nowrap; }
+    th:nth-child(6), td.tps { width: 96px; white-space: nowrap; }
+    td.tps.timing { color: var(--watch); }
+    th:nth-child(7), td.level { width: 132px; }
+    td.title, td.model, td.ipcell, td.level { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    td.remark { color: var(--muted); word-break: break-word; }
+    .pager { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .muted { color: var(--muted); }
+    .actions { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
+    .scope p { margin: 0 0 10px; font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+    .scope p:last-child { margin: 0; }
+    .scope b { color: var(--text); font-weight: 650; }
+    .scope code { font-size: 12px; }
+    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Grok 出口检测</h1>
+    <p class="lead">使用本机当前出口IP：通过计算令牌/秒来判断是否降智，仅官方登录的 Cursor Agents / Grok Build 使用。</p>
+    <div class="actions">
+      <button id="refresh">重新检测出口</button>
+    </div>
+    <div class="row">
+      <section class="card">
+        <h2>当前出口</h2>
+        <div class="ip" id="ip">检测中…</div>
+        <dl class="meta">
+          <div class="meta-row"><dt>地点</dt><dd id="loc">—</dd></div>
+          <div class="meta-row"><dt>运营商</dt><dd id="isp">—</dd></div>
+          <div class="meta-row"><dt>网络</dt><dd id="asn">—</dd></div>
+        </dl>
+        <div id="ip-badges"></div>
+      </section>
+      <section class="card scope">
+        <h2>适用边界</h2>
+        <p><b>Grok Build / Grok CLI</b>：读本机 <code>~/.grok/sessions</code> 里官方回合数据（outputTokens、耗时）。</p>
+        <p><b>Cursor Agents</b>：发送时先记一行样本并开始计时，回复结束后估算令牌/秒；没有思考过程的模型不会因此判成降智。</p>
+      </section>
+    </div>
+    <section class="card" style="margin-top:12px">
+      <h2 class="sample-head">
+        <span>最近样本</span>
+        <span class="sample-tools">
+          <span class="muted" id="checked">尚未检测</span>
+          <button id="clear" class="danger" type="button">清空样本</button>
+        </span>
+      </h2>
+      <table>
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>对话</th>
+            <th>来源</th>
+            <th>模型</th>
+            <th>IP</th>
+            <th>令牌/秒</th>
+            <th>判定</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody id="rows"><tr><td colspan="8" class="muted">还没有记录。发送 Cursor / Grok Build 对话，或点重新检测。</td></tr></tbody>
+      </table>
+      <div class="pager">
+        <span class="muted" id="page-info">共 0 条</span>
+        <span>
+          <button id="prev-page" class="ghost" type="button" disabled>上一页</button>
+          <button id="next-page" class="ghost" type="button" disabled>下一页</button>
+        </span>
+      </div>
+    </section>
+  </main>
+  <script>
+    const API = location.origin.startsWith("http") ? "" : "http://127.0.0.1:3780";
+    const PAGE_SIZE = 15;
+    let page = 0;
+    let lastSamples = [];
+
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[ch]));
+    }
+
+    function renderRows(samples) {
+      lastSamples = samples;
+      const total = samples.length;
+      const pages = Math.max(1, Math.ceil(total / PAGE_SIZE) || 1);
+      if (page > pages - 1) page = pages - 1;
+      if (page < 0) page = 0;
+      const slice = samples.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+      const rows = slice.length
+        ? slice.map((s) => {
+            const title = s.title || "—";
+            const time = new Date(s.at).toLocaleString("zh-CN", {
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            });
+            const tps = s.pending
+              ? "正在计时"
+              : s.kind === "ip" || s.tps == null
+                ? "—"
+                : Number(s.tps).toFixed(1);
+            const level = s.pending ? "——" : (s.levelLabel || s.verdictLabel || s.level || "—");
+            const remark = s.pending ? "——" : ((s.remarkLabels || []).join("、") || "—");
+            return `<tr>
+              <td class="time">${esc(time)}</td>
+              <td class="title" title="${esc(s.titleFull || title)}">${esc(title)}</td>
+              <td class="source">${esc(s.sourceLabel || s.source || "—")}</td>
+              <td class="model" title="${esc(s.model || s.modelLabel || "")}">${esc(s.modelLabel || "—")}</td>
+              <td class="ipcell">${esc(s.ipLabel || "—")}</td>
+              <td class="tps${s.pending ? " timing" : ""}">${esc(tps)}</td>
+              <td class="level">${esc(level)}</td>
+              <td class="remark">${esc(remark)}</td>
+            </tr>`;
+          }).join("")
+        : '<tr><td colspan="8" class="muted">还没有记录。</td></tr>';
+      document.getElementById("rows").innerHTML = rows;
+      document.getElementById("page-info").textContent = total
+        ? `第 ${page + 1}/${pages} 页 · 共 ${total} 条`
+        : "共 0 条";
+      document.getElementById("prev-page").disabled = page <= 0 || !total;
+      document.getElementById("next-page").disabled = !total || page >= pages - 1;
+    }
+
+    async function load() {
+      const [status, samples] = await Promise.all([
+        fetch(API + "/api/status").then((r) => r.json()),
+        fetch(API + "/api/samples").then((r) => r.json()),
+      ]);
+      const ip = status.ipv4 || status.ipv6 || "未知";
+      document.getElementById("ip").textContent = ip;
+      const g = status.geo || {};
+      document.getElementById("loc").textContent = g.locationText || [g.country, g.region, g.city].filter(Boolean).join(" · ") || "未知";
+      document.getElementById("isp").textContent = g.ispText || g.isp || "未知";
+      document.getElementById("asn").textContent = g.asnText || g.as || "未知";
+      const badges = [];
+      const riskName = status.ipRiskLabel || { low: "低", medium: "中等", high: "高" }[status.ipScore.band] || "未知";
+      badges.push(`<span class="badge ${status.ipScore.band}">风险${riskName}</span>`);
+      if (g.hosting) badges.push('<span class="badge high">机房</span>');
+      if (g.proxy) badges.push('<span class="badge high">代理标记</span>');
+      if (!g.hosting && !g.proxy) badges.push('<span class="badge low">更像宽带</span>');
+      if (status.ipv6Leak) badges.push('<span class="badge high">IPv4/IPv6 出口不一致</span>');
+      document.getElementById("ip-badges").innerHTML = badges.join("");
+      const pendingN = samples.filter((s) => s.pending).length;
+      document.getElementById("checked").textContent = pendingN
+        ? pendingN > 1
+          ? `${pendingN} 条正在计时，出结果后自动更新`
+          : "正在计时，出结果后自动更新"
+        : status.checkedAt
+          ? "上次检测：" + new Date(status.checkedAt).toLocaleTimeString()
+          : "尚未检测";
+      renderRows(samples);
+    }
+
+    const refreshBtn = document.getElementById("refresh");
+    async function refresh(force) {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = "检测中…";
+      try {
+        await fetch(API + "/api/refresh", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ source: "manual" }),
+        });
+        await load();
+        refreshBtn.textContent = "已更新";
+        setTimeout(() => (refreshBtn.textContent = "重新检测出口"), 800);
+      } catch (err) {
+        refreshBtn.textContent = "失败，再试";
+        document.getElementById("checked").textContent = "检测失败：" + err;
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    }
+    refreshBtn.onclick = () => refresh(true);
+    document.getElementById("prev-page").onclick = () => {
+      page -= 1;
+      renderRows(lastSamples);
+    };
+    document.getElementById("next-page").onclick = () => {
+      page += 1;
+      renderRows(lastSamples);
+    };
+    document.getElementById("clear").onclick = async () => {
+      if (!confirm("确定清空全部样本？")) return;
+      if (!confirm("再确认一次：会从磁盘删掉 samples.json 里的记录，不能恢复。")) return;
+      const btn = document.getElementById("clear");
+      btn.disabled = true;
+      try {
+        const res = await fetch(API + "/api/samples", { method: "DELETE" });
+        if (!res.ok) throw new Error(String(res.status));
+        page = 0;
+        await load();
+      } catch (err) {
+        document.getElementById("checked").textContent = "清空失败：" + err;
+      } finally {
+        btn.disabled = false;
+      }
+    };
+    load().catch((err) => {
+      document.getElementById("ip").textContent = "服务未就绪";
+      document.getElementById("checked").textContent = String(err);
+    });
+    const events = new EventSource(API + "/api/events");
+    events.onmessage = () => load();
+  </script>
+</body>
+</html>
