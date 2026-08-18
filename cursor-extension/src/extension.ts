@@ -127,7 +127,7 @@ function panelHtml() {
       btn.textContent = "重新检测出口";
       if (msg.type === "offline") {
         document.getElementById("ip").textContent = "服务未开";
-        document.getElementById("summary").textContent = "先运行 D:\\\\grok-egress-guard\\\\start.bat，再点重新检测。";
+        document.getElementById("summary").textContent = "先在本仓库运行 npm start（或 start.bat），再点重新检测。";
         document.getElementById("verdict").textContent = "离线";
         return;
       }

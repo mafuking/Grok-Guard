@@ -6,7 +6,14 @@ const CACHE_MS = 1500;
 let cache = { at: 0, value: null };
 
 function dbPath() {
-  return path.join(os.homedir(), "AppData", "Roaming", "Cursor", "User", "globalStorage", "state.vscdb");
+  const home = os.homedir();
+  if (process.platform === "win32") {
+    return path.join(home, "AppData", "Roaming", "Cursor", "User", "globalStorage", "state.vscdb");
+  }
+  if (process.platform === "darwin") {
+    return path.join(home, "Library", "Application Support", "Cursor", "User", "globalStorage", "state.vscdb");
+  }
+  return path.join(home, ".config", "Cursor", "User", "globalStorage", "state.vscdb");
 }
 
 function openDb() {

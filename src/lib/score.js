@@ -9,8 +9,15 @@ export const THINKING_OUTPUT_FLOOR = 32;
 export const QUALITY_PROBE =
   "用大约 80 到 120 个英文词解释 TCP 和 UDP 的区别，不要列清单。最后单独一行只写：QUALITY_OK";
 
+export const LOGIC_V1 = "v1.0.0";
+export const LOGIC_V2 = "v2.0.0";
+
 export function logicVersion() {
-  return process.env.GROK_GUARD_LOGIC === "v1" ? "v1" : "v2";
+  return process.env.GROK_GUARD_LOGIC === "v1" ? LOGIC_V1 : LOGIC_V2;
+}
+
+function isV1() {
+  return logicVersion().startsWith("v1.");
 }
 
 export function computeTps(outputTokens, durationMs, firstTokenMs) {
@@ -32,7 +39,7 @@ export function isProbeText(text) {
 }
 
 export function classifyTps(args) {
-  return logicVersion() === "v1" ? v1.classifyTps(args) : classifyTpsV2(args);
+  return isV1() ? v1.classifyTps(args) : classifyTpsV2(args);
 }
 
 export function classifyTpsV2({
@@ -76,7 +83,7 @@ export function classifyTpsV2({
 }
 
 export function combineVerdict(args) {
-  return logicVersion() === "v1" ? v1.combineVerdict(args) : combineVerdictV2(args);
+  return isV1() ? v1.combineVerdict(args) : combineVerdictV2(args);
 }
 
 export function combineVerdictV2({ ipScore, tpsClass, ipv4, ipv6, ipv6Leak }) {
@@ -91,7 +98,7 @@ export function combineVerdictV2({ ipScore, tpsClass, ipv4, ipv6, ipv6Leak }) {
     verdict,
     verdictLabel: LABELS.verdict[verdict],
     ipRiskLabel: LABELS.band[ipScore.band],
-    logicVersion: "v2",
+    logicVersion: LOGIC_V2,
     summary: summarizeV2(verdict, ipScore, tpsClass, ipv4),
     notes,
     noteLabels: notes.map(labelReason),
@@ -131,7 +138,7 @@ const LABELS_V2 = {
   source: { ...v1.LABELS.source },
 };
 
-export const LABELS = logicVersion() === "v1" ? v1.LABELS : LABELS_V2;
+export const LABELS = isV1() ? v1.LABELS : LABELS_V2;
 
 export function labelReason(code) {
   if (LABELS.reason[code]) return LABELS.reason[code];

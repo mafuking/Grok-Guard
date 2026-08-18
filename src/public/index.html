@@ -105,7 +105,6 @@
     <div class="actions">
       <button id="refresh">重新检测出口</button>
       <button class="ghost" id="copy-probe" type="button">复制质量探针</button>
-      <span class="muted" id="logic-ver"></span>
     </div>
     <div class="row">
       <section class="card">
@@ -122,6 +121,7 @@
         <h2>适用边界</h2>
         <p><b>模型质量</b>：Grok 确认没有思考，或探针缺 <code>QUALITY_OK</code>，才标疑似降智。SOL 等无思考模型只备注。</p>
         <p><b>出口</b>：机房 / 代理 / 国家单独看，不和降智合成。Cursor 官方流量先到 Cursor，本机 IP 管地区和风控。</p>
+        <p id="logic-ver">判定版本 —</p>
       </section>
     </div>
     <section class="card" style="margin-top:12px">
@@ -238,9 +238,9 @@
         badges.unshift(`<span class="badge ${status.verdict || ""}">${esc(status.verdictLabel)}</span>`);
       }
       document.getElementById("ip-badges").innerHTML = badges.join("");
-      document.getElementById("logic-ver").textContent = status.logicVersion
-        ? "判定 " + status.logicVersion
-        : "";
+      document.getElementById("logic-ver").innerHTML = status.logicVersion
+        ? "<b>判定版本</b>：" + esc(status.logicVersion)
+        : "<b>判定版本</b>：—";
       const pendingN = samples.filter((s) => s.pending).length;
       document.getElementById("checked").textContent = pendingN
         ? pendingN > 1
