@@ -4,7 +4,7 @@
 
 A local sidecar that checks quality and egress for **official-login** Cursor, Grok Build, and Grok CLI. Default logic is **v2.0.0**: Grok is judged by thinking and a probe; egress IP is scored on its own; tokens/sec is recorded only.
 
-This is not an official xAI or Cursor verdict. The heuristics were informed by the grok2api Quality Guard, but this repo is **not** a port of [proxy-pool / account-farm stacks](https://linux.do/t/topic/2688339). See [Related work](#related-work).
+This is not an official xAI or Cursor verdict. The heuristics were informed by the grok2api Quality Guard. See [Related work](#related-work).
 
 ## What it does
 
@@ -36,84 +36,42 @@ Egress lookup ── ipify + ip-api.com (IP only, no chat text)
 
 The sidecar has zero runtime npm dependencies (Node stdlib).
 
-## Requirements
-
-- **Node.js 22.5+** (Cursor local DB is read with `node:sqlite`)
-- Outbound network (egress IP and geo)
-- For Cursor: the workspace must be **trusted**, or user-level hooks will not run
-
-The sidecar runs on Windows, macOS, and Linux. Conversation title and model reads use the platform-specific Cursor DB path.
-
 ## Install
+
+You need **Node.js 22.5+** (Cursor’s local DB is read with `node:sqlite`). No `npm install`, and no extension.
 
 ```bash
 git clone https://github.com/mafuking/grok-egress-guard.git
 cd grok-egress-guard
+npm run install:hooks    # once
+npm start                # leave this window open, or use start.bat
 ```
 
-No `npm install` at the repo root. **There is no Cursor extension.** Results are always in the browser dashboard.
+Then **Reload Window** in Cursor and open http://127.0.0.1:3780. Chat as usual. The workspace must be trusted or user-level hooks will not run.
 
-### Shortest path
+Grok CLI can skip `install:hooks`. The userscript is only for the Grok website.
 
-```bash
-npm start               # dashboard at http://127.0.0.1:3780
-npm run install:hooks   # writes Cursor Agents hooks only; does not install an extension
-# Reload Window, chat as usual, read results in the browser
-```
+Put the sidecar and Cursor on the same TUN / proxy or the dashboard IP will not match Agent egress. To probe Grok, copy the quality prompt from the dashboard; the last line should be `QUALITY_OK`.
 
-If you only use Grok Build / Grok CLI and not Cursor Agents, you can skip `install:hooks`. If you mainly use Agents, run it once.
+Default port `3780` (`PORT` to change).
 
-### 1. Start the local server
+### Grok Build (optional)
 
-On Windows you can double-click `start.bat`, or run `npm start` on any OS. Open http://127.0.0.1:3780
+Install [Tampermonkey](https://www.tampermonkey.net/), import `userscript/grok-build-guard.user.js`, allow `127.0.0.1`. Send a turn on grok.com; the dashboard source should be `grok-build`. Tokens and timing only — no chat text.
 
-Self-check: `npm test`
+### Hooks by hand (optional)
 
-Default port is `3780`. Override with `PORT`.
+Copy `hooks/hooks.json.example`, point paths at your clone, write `~/.cursor/hooks.json`.
 
-### 2. Cursor Agents
+| Event | Script |
+|-------|--------|
+| `beforeSubmitPrompt` | `hooks/on-submit.mjs` |
+| `afterAgentThought` | `hooks/on-thought.mjs` |
+| `afterAgentResponse` | `hooks/on-response.mjs` |
 
-`npm run install:hooks` merges three hooks into `~/.cursor/hooks.json` (existing hooks are kept). It does **not** install an extension.
+`on-stop.mjs` is not installed by default, so it does not race the response hook.
 
-Then:
-
-1. `Ctrl+Shift+P` (macOS `Cmd+Shift+P`) → **Developer: Reload Window**
-2. Keep the sidecar running, then send an Agent turn
-3. Open http://127.0.0.1:3780 for the verdict and recent samples
-
-Manual install: copy `hooks/hooks.json.example`, replace the path with your clone, and write it to user-level `~/.cursor/hooks.json` (on Windows usually `%USERPROFILE%\.cursor\hooks.json`). Events:
-
-| Cursor event | Script | Role |
-|--------------|--------|------|
-| `beforeSubmitPrompt` | `hooks/on-submit.mjs` | Start timing |
-| `afterAgentThought` | `hooks/on-thought.mjs` | Accumulate thinking tokens |
-| `afterAgentResponse` | `hooks/on-response.mjs` | Finish and score |
-
-`hooks/on-stop.mjs` is a fallback finisher. It is not installed by default, so it does not race `afterAgentResponse`.
-
-### 3. Grok Build (browser)
-
-1. Install [Tampermonkey](https://www.tampermonkey.net/)
-2. Import `userscript/grok-build-guard.user.js`
-3. Allow the script to reach `127.0.0.1`
-4. Open grok.com and send a normal turn; the dashboard “recent samples” should show source `grok-build`
-
-The script reports estimated or parsed token counts and timings only. **It does not upload chat text.**
-
-### 4. Grok CLI
-
-Once the sidecar is running it watches `~/.grok/sessions`. A finished official CLI turn with `reasoningTokens` becomes a sample. Nothing else to install.
-
-## Usage
-
-1. Keep the sidecar running
-2. Send a turn with your usual official login
-3. Open http://127.0.0.1:3780
-4. To probe quality: click “Copy quality probe”, send it to **Grok**, and expect a last line of `QUALITY_OK`
-
-Put the sidecar and Cursor on the same TUN / same proxy, or the dashboard IP will not match the Agent terminal egress.
-
-### What egress IP means on each product
+## What egress IP means on each product
 
 | Product | What the IP is | Where quality samples come from |
 |---------|----------------|----------------------------------|
@@ -144,7 +102,7 @@ hooks/                   Cursor Agent hooks
 userscript/              Grok Build userscript
 ```
 
-Run `npm test` after changing verdict logic. If hook script paths change, run `npm run install:hooks` again. There is no extension install step.
+Run `npm test` after changing verdict logic. If hook script paths change, run `npm run install:hooks` again.
 
 ## Related work
 

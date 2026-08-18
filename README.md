@@ -4,7 +4,7 @@
 
 本机 sidecar：给 **官方登录** 的 Cursor / Grok Build / Grok CLI 做质量与出口检测。默认判定 **v2.0.0**——Grok 看思考和探针，出口 IP 单独看，令牌/秒只作记录。
 
-不是 xAI / Cursor 官方鉴定。启发式参考了 grok2api 那套 Quality Guard，但本仓库**不是** [代理池 / 注册机](https://linux.do/t/topic/2688339) 的移植，见下方[参考项目](#参考项目)。
+不是 xAI / Cursor 官方鉴定。启发式参考了 grok2api 那套 Quality Guard，见[参考项目](#参考项目)。
 
 ## 它做什么
 
@@ -36,84 +36,42 @@ Grok CLI      ── 监视 ~/.grok/sessions
 
 sidecar 零运行时依赖（Node 标准库）。
 
-## 环境
-
-- **Node.js 22.5+**（读取 Cursor 本地库用了 `node:sqlite`）
-- 本机出网（查出口 IP 和 Geo）
-- Cursor 侧需要 **信任工作区**，用户级 hooks 才会跑
-
-Windows / macOS / Linux 都能跑 sidecar。Cursor 对话标题和模型读取已按各平台路径处理。
-
 ## 安装
+
+已装 **Node.js 22.5+**（读 Cursor 本地库要用）。不用 `npm install`，也没有扩展。
 
 ```bash
 git clone https://github.com/mafuking/grok-egress-guard.git
 cd grok-egress-guard
+npm run install:hooks    # 只跑一次
+npm start                # 窗口一直开着；或双击 start.bat
 ```
 
-仓库本身不用 `npm install`。**没有 Cursor 扩展**，结果一律看浏览器面板。
+然后 Cursor 里 **Reload Window**，打开 http://127.0.0.1:3780，正常对话即可。Cursor 工作区需要是信任的，用户级 hooks 才会跑。
 
-### 最短路径
+Grok CLI 可以不跑第 2 步。油猴只给 Grok 网页用。
 
-```bash
-npm start               # 本机面板 http://127.0.0.1:3780
-npm run install:hooks   # 只写 Cursor Agents 的 hooks，不装扩展
-# Reload Window 后正常对话，结果看浏览器面板
-```
+sidecar 和 Cursor 走同一条 TUN / 代理，面板 IP 才和 Agent 出口一致。想主动测 Grok：面板里复制质量探针，最后一行应是 `QUALITY_OK`。
 
-只用 Grok Build / Grok CLI、不用 Cursor Agents 的人，`install:hooks` 也可以不跑。主要用 Agents 的话，跑一次即可。
+端口默认 `3780`，可用 `PORT` 改。
 
-### 1. 启动本机服务
+### Grok Build（可选）
 
-Windows 可双击 `start.bat`，或任意系统执行 `npm start`。打开 http://127.0.0.1:3780
+装 [Tampermonkey](https://www.tampermonkey.net/)，导入 `userscript/grok-build-guard.user.js`，允许访问 `127.0.0.1`。在 grok.com 聊一条，面板来源应出现 `grok-build`。脚本只报 token 和时间，不上传对话正文。
 
-自检：`npm test`
+### 手改 hooks（可选）
 
-端口默认 `3780`，可用环境变量 `PORT` 改。
+把 `hooks/hooks.json.example` 的路径改成你的克隆目录，写入 `~/.cursor/hooks.json`。
 
-### 2. 接入 Cursor Agents
+| 事件 | 脚本 |
+|------|------|
+| `beforeSubmitPrompt` | `hooks/on-submit.mjs` |
+| `afterAgentThought` | `hooks/on-thought.mjs` |
+| `afterAgentResponse` | `hooks/on-response.mjs` |
 
-`npm run install:hooks` 只把三条 hook 合并进 `~/.cursor/hooks.json`（已有其他 hook 会保留），**不装扩展**。
+`on-stop.mjs` 默认不装，避免和回复结束抢同一条会话。
 
-然后：
-
-1. `Ctrl+Shift+P`（macOS `Cmd+Shift+P`）→ **Developer: Reload Window**
-2. 先让 sidecar 保持运行，再发一条 Agent 对话
-3. 打开 http://127.0.0.1:3780 看综合判断和最近样本
-
-手动安装也可以：把 `hooks/hooks.json.example` 里的路径改成你的克隆目录，写入用户级 `~/.cursor/hooks.json`（Windows 一般是 `%USERPROFILE%\.cursor\hooks.json`）。事件对应：
-
-| Cursor 事件 | 脚本 | 作用 |
-|-------------|------|------|
-| `beforeSubmitPrompt` | `hooks/on-submit.mjs` | 开始计时 |
-| `afterAgentThought` | `hooks/on-thought.mjs` | 累计思考 token |
-| `afterAgentResponse` | `hooks/on-response.mjs` | 收尾并出判定 |
-
-`hooks/on-stop.mjs` 是备用收尾，默认不装，避免和 `afterAgentResponse` 抢同一条会话。
-
-### 3. Grok Build（浏览器）
-
-1. 浏览器装 [Tampermonkey](https://www.tampermonkey.net/)
-2. 导入 `userscript/grok-build-guard.user.js`
-3. 允许脚本访问 `127.0.0.1`
-4. 打开 grok.com，正常聊一条；面板「最近样本」应出现来源 `grok-build`
-
-脚本只上报估算或解析到的 token 数和时间，**不上传对话正文**。
-
-### 4. Grok CLI
-
-sidecar 启动后会监视 `~/.grok/sessions`。用官方 CLI 聊完一轮，有 `reasoningTokens` 就会进样本，不用再装东西。
-
-## 怎么用
-
-1. 保持 sidecar 开着
-2. 用你日常的官方登录方式发一条对话
-3. 打开 http://127.0.0.1:3780 看综合判断
-4. 想主动测质量：点「复制质量探针」，把提示发给 **Grok**，最后一行应出现 `QUALITY_OK`
-
-把 sidecar 和 Cursor 放在同一条 TUN / 同一套代理下，面板上的 IP 才和 Agent 终端出口一致。
-
-### 各产品出口 IP 分别代表什么
+## 各产品出口 IP 分别代表什么
 
 | 产品 | 出口 IP 的意义 | 质量样本从哪来 |
 |------|----------------|----------------|
@@ -144,7 +102,7 @@ hooks/                   Cursor Agent hooks
 userscript/              Grok Build 油猴
 ```
 
-改判定逻辑后跑 `npm test`。hooks 脚本路径变了就重新 `npm run install:hooks`。不要再找扩展安装步骤。
+改判定逻辑后跑 `npm test`。hooks 路径变了再跑一次 `npm run install:hooks`。
 
 ## 参考项目
 
