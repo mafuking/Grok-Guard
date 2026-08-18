@@ -9,7 +9,7 @@
   "description": "Local quality and egress probe for official-login Cursor, Grok Build, and Grok CLI",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node scripts/boot.mjs",
     "test": "node --test src/lib/*.test.js",
     "install:hooks": "node scripts/install-hooks.mjs"
   }

@@ -34,40 +34,23 @@ Grok CLI      ── 监视 ~/.grok/sessions
 出口查询      ── ipify + ip-api.com（只查 IP，不传对话）
 ```
 
-sidecar 零运行时依赖（Node 标准库）。
-
 ## 安装
 
 需要 **Node.js 22.5+**。不用 `npm install`，也没有扩展。
 
 ```bash
 git clone https://github.com/mafuking/grok-egress-guard.git
-cd grok-egress-guard
-npm run install:hooks    # 只跑一次
-npm start                # 窗口一直开着，Windows可以双击 start.bat
 ```
 
-Cursor： 按 `Ctrl+Shift+P`（macOS 用 `Cmd+Shift+P`），运行 **Developer: Reload Window** 重载窗口。
-再打开 [本机面板](http://127.0.0.1:3780/)，正常对话即可，工作区需先设为信任。
+Windows 双击 `start.bat`。其它系统：`npm start` 或 `./start.sh`。都会先写 hooks 再开面板；hooks 写失败也会继续开服务。窗口不要关。
 
-只用 Grok CLI 时可跳过 `install:hooks`。
-油猴只给 grok.com，见下。默认端口 `3780`。
+然后在 Cursor 按 `Ctrl+Shift+P`（macOS 用 `Cmd+Shift+P`），运行 **Developer: Reload Window**。打开 [本机面板](http://127.0.0.1:3780/)，正常对话即可。工作区需先设为信任。
+
+`npm run install:hooks` 只用来「只写 hooks、不启动」。油猴只给 grok.com，见下。
 
 ### Grok Build（可选）
 
-装 [Tampermonkey](https://www.tampermonkey.net/)，导入 `userscript/grok-build-guard.user.js`，允许访问 `127.0.0.1`。在 grok.com 聊一条，面板来源应出现 `grok-build`。脚本只报 token 和时间，不上传对话正文。
-
-### 手改 hooks（可选）
-
-把 `hooks/hooks.json.example` 的路径改成你的克隆目录，写入 `~/.cursor/hooks.json`。
-
-| 事件 | 脚本 |
-|------|------|
-| `beforeSubmitPrompt` | `hooks/on-submit.mjs` |
-| `afterAgentThought` | `hooks/on-thought.mjs` |
-| `afterAgentResponse` | `hooks/on-response.mjs` |
-
-`on-stop.mjs` 默认不装，避免和回复结束抢同一条会话。
+装 [Tampermonkey](https://www.tampermonkey.net/)，导入 `userscript/grok-build-guard.user.js`，允许访问 `127.0.0.1`。在 grok.com 聊一条，面板来源应出现 `grok-build`。只报 token 和时间，不上传对话正文。
 
 ## 各产品出口 IP 分别代表什么
 
@@ -77,30 +60,26 @@ Cursor： 按 `Ctrl+Shift+P`（macOS 用 `Cmd+Shift+P`），运行 **Developer: 
 | **Grok CLI** | 本机出口 | `~/.grok/sessions` 官方 `reasoningTokens` |
 | **Cursor 官方** | 流量先到 Cursor。面板看的是本机 / 代理出口 | hook 估算；Cursor 里的 Grok 才强制思考 |
 
-主要用 Cursor 的话，**以本机面板为准**。机房 IP 仍会标出来，但不会因此写成降智。
+主要用 Cursor 的话，**以本机面板为准**。机房 IP 仍会标出来，但不会因此写成降智。sidecar 和 Cursor 走同一条 TUN / 代理，面板 IP 才和 Agent 出口一致。
 
 ## 隐私与边界
 
-- 监听 `127.0.0.1`，不对外网开端口
-- 样本和进行中的会话写在本地 `data/`，不进 git
-- Cursor hook 会把**当前这一轮的提示**打到本机 sidecar，用来判断是不是探针、以及生成标题；不会发到第三方
-- 出口查询会把**本机公网 IP** 发给 ipify 和 ip-api.com，用于 Geo / ASN
+- 监听 `127.0.0.1`，样本只写本地 `data/`
+- Cursor hook 把**当前这一轮的提示**打到本机 sidecar，用来判断探针和生成标题，不发第三方
+- 出口查询会把本机公网 IP 发给 ipify 和 ip-api.com
 - 只读 Cursor 本地 `state.vscdb`，取对话标题和模型名
-- 这是社区启发式。官方高速、缺 hook、模型本来不思考，都会让样本看起来「不像降智」或「采不到」
+- 社区启发式，不是官方鉴定
 
 ## 开发
 
 ```text
 src/server.js            本机 HTTP + SSE
 src/lib/score.js         判定（v2.0.0）
-src/lib/ip.js            出口与 Geo
-src/lib/grok-watch.js    Grok CLI 会话监视
-src/lib/cursor-meta.js   读 Cursor 本地库
 hooks/                   Cursor Agent hooks
 userscript/              Grok Build 油猴
 ```
 
-改判定逻辑后跑 `npm test`。hooks 路径变了再跑一次 `npm run install:hooks`。
+`npm test`。启动时会顺带写 hooks。手改示例见 `hooks/hooks.json.example`。
 
 ## 参考项目
 
